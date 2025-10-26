@@ -1,5 +1,15 @@
 import streamlit as st
 
+# Admin Configuration
+ADMIN_EMAILS = [
+    "razorpay@razorpay.com",
+    "nayanlc19@gmail.com"
+]
+
+def is_admin(email):
+    """Check if the given email is an admin"""
+    return email.lower().strip() in [admin.lower() for admin in ADMIN_EMAILS]
+
 # Page configuration
 st.set_page_config(
     page_title="Home Loan Toolkit - Complete Guide",
@@ -106,6 +116,25 @@ if 'selected_category' not in st.session_state:
 
 def main():
     """Main application entry point"""
+
+    # Admin/User Email Input (temporary until Google OAuth is configured)
+    with st.sidebar:
+        st.markdown("### 👤 User Login")
+        user_email = st.text_input(
+            "Email Address",
+            value=st.session_state.get('user_email', ''),
+            placeholder="Enter your email",
+            help="Admin emails get free access to all strategies"
+        )
+
+        if user_email:
+            st.session_state.user_email = user_email
+            if is_admin(user_email):
+                st.success("👑 Admin Access Granted!")
+            else:
+                st.info("💳 Payment required for full access")
+
+        st.markdown("---")
 
     # Header
     st.markdown('<div class="main-header">🏠 Home Loan Toolkit</div>', unsafe_allow_html=True)
@@ -302,13 +331,22 @@ def main():
 def route_to_category():
     """Route to the selected category"""
     if st.session_state.selected_category == "loans":
-        # Check if user has paid
-        if st.session_state.get('paid', False):
+        # Check if user is admin or has paid
+        user_email = st.session_state.get('user_email', '')
+        is_admin_user = is_admin(user_email)
+        has_paid = st.session_state.get('paid', False)
+
+        if is_admin_user or has_paid:
             # Import and run home loan strategies
             import home_loan_strategies
             if st.sidebar.button("← Back to Home", key="back_from_loans"):
                 st.session_state.selected_category = None
                 st.rerun()
+
+            # Show admin badge if admin
+            if is_admin_user:
+                st.sidebar.success(f"👑 Admin Access: {user_email}")
+
             home_loan_strategies.main()
         else:
             # Show payment required message
