@@ -455,9 +455,11 @@ def main():
             st.rerun()
 
     with footer_col4:
-        st.markdown("### 📧 Quick Contact")
-        st.markdown("**Email:** dmcpexam2020@gmail.com")
-        st.markdown("**🔐 Auth:** Google (via Render)")
+        if st.button("📦 Shipping Policy", use_container_width=True):
+            st.session_state.selected_category = "shipping"
+            st.rerun()
+        st.markdown("")
+        st.markdown("")
 
     st.markdown("---")
     st.markdown("""
@@ -534,6 +536,9 @@ def route_to_category():
     elif st.session_state.selected_category == "cancellation":
         show_cancellation_policy_page()
 
+    elif st.session_state.selected_category == "shipping":
+        show_shipping_policy_page()
+
     elif st.session_state.selected_category == "checkout":
         show_checkout_page()
 
@@ -591,6 +596,10 @@ def show_contact_page():
 
         if st.form_submit_button("Send Message to dmcpexam2020@gmail.com"):
             st.success("Thank you! We'll respond to dmcpexam2020@gmail.com within 24-48 hours.")
+
+    if st.button("← Back to Home"):
+        st.session_state.selected_category = None
+        st.rerun()
 
 def show_terms_page():
     """Terms & Conditions page"""
@@ -885,6 +894,95 @@ def show_cancellation_policy_page():
     ---
 
     **By making a payment, you acknowledge that NO CANCELLATIONS are permitted once service is delivered.**
+    """)
+
+    if st.button("← Back to Home"):
+        st.session_state.selected_category = None
+        st.rerun()
+
+def show_shipping_policy_page():
+    """Shipping & Delivery Policy page"""
+    st.title("📦 Shipping & Delivery Policy")
+
+    st.markdown("""
+    **Last Updated:** October 27, 2025
+
+    ## Digital Product - Instant Delivery
+
+    **IMPORTANT:** Home Loan Toolkit is a **100% DIGITAL PRODUCT**. There is NO physical shipping involved.
+
+    ## How You Get Access
+
+    ### ✅ Instant Access After Payment
+
+    Once your payment is successfully processed:
+
+    1. **Immediate Activation**: Your account is activated instantly
+    2. **No Waiting**: Access all 12 strategies immediately
+    3. **Instant Delivery**: All calculators, tools, and content available right away
+    4. **Email Confirmation**: You'll receive a payment confirmation email
+
+    ### 📧 Access Details
+
+    - **Delivery Method**: Online access through website (https://home-loan-toolkit.onrender.com/)
+    - **Delivery Time**: Instant (within seconds of payment confirmation)
+    - **Access Duration**: Lifetime access
+    - **Downloads**: No downloads required - all tools are web-based
+
+    ## What You Get Access To
+
+    After successful payment, you will immediately get access to:
+
+    - ✅ All 12 Home Loan Payment Strategies
+    - ✅ Interactive Calculators for each strategy
+    - ✅ Comparison Tools
+    - ✅ Implementation Guides
+    - ✅ Property Business Tools
+    - ✅ All future updates (FREE)
+
+    ## Payment Processing
+
+    - Payment is processed through secure payment gateway
+    - Once payment is successful, access is granted automatically
+    - No manual activation required
+    - No shipping address needed (digital product)
+
+    ## Accessing Your Purchase
+
+    **Steps to Access:**
+
+    1. Complete payment of ₹99 through checkout
+    2. Payment gateway processes your payment
+    3. You receive instant access to all strategies
+    4. Login with your email to access all content
+    5. Start using tools immediately
+
+    ## No Physical Delivery
+
+    - ✅ This is a digital-only service
+    - ✅ No courier/postal delivery
+    - ✅ No shipping charges
+    - ✅ No shipping address required
+    - ✅ Instant online access only
+
+    ## Support
+
+    If you face any issues accessing your purchase after payment:
+
+    - **Contact**: dmcpexam2020@gmail.com
+    - **Response Time**: Within 24-48 hours
+    - **We'll resolve**: Any access issues immediately
+
+    ## Summary
+
+    🎯 **Digital Product = Instant Access**
+    - Pay ₹99 → Get instant access → Start using immediately
+    - No waiting, no shipping, no delays
+    - 100% online, 100% instant
+
+    ---
+
+    **By making a purchase, you understand this is a digital product with instant online access and no physical shipping.**
     """)
 
     if st.button("← Back to Home"):
