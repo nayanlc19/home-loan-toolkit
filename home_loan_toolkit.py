@@ -117,25 +117,6 @@ if 'selected_category' not in st.session_state:
 def main():
     """Main application entry point"""
 
-    # Admin/User Email Input (temporary until Google OAuth is configured)
-    with st.sidebar:
-        st.markdown("### 👤 User Login")
-        user_email = st.text_input(
-            "Email Address",
-            value=st.session_state.get('user_email', ''),
-            placeholder="Enter your email",
-            help="Admin emails get free access to all strategies"
-        )
-
-        if user_email:
-            st.session_state.user_email = user_email
-            if is_admin(user_email):
-                st.success("👑 Admin Access Granted!")
-            else:
-                st.info("💳 Payment required for full access")
-
-        st.markdown("---")
-
     # Header
     st.markdown('<div class="main-header">🏠 Home Loan Toolkit</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">Everything You Need to Master Your Home Loan Journey</div>', unsafe_allow_html=True)
@@ -486,6 +467,27 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
+    # User Login Section (at bottom of page)
+    st.markdown("---")
+    st.markdown("### 👤 User Login / Admin Access")
+    login_col1, login_col2, login_col3 = st.columns([1, 2, 1])
+
+    with login_col2:
+        user_email = st.text_input(
+            "Email Address",
+            value=st.session_state.get('user_email', ''),
+            placeholder="Enter your email for access",
+            help="Admin emails get free access to all strategies. Regular users need to pay ₹99.",
+            key="user_login_email"
+        )
+
+        if user_email:
+            st.session_state.user_email = user_email
+            if is_admin(user_email):
+                st.success("👑 Admin Access Granted! You have free access to all 12 strategies.")
+            else:
+                st.info("💳 Payment of ₹99 required for full access to all strategies.")
+
 def route_to_category():
     """Route to the selected category"""
     if st.session_state.selected_category == "loans":
@@ -542,6 +544,15 @@ def show_contact_page():
     """Contact Us page with professional details"""
     st.title("📞 Contact Us")
 
+    # Prominent Email Display
+    st.markdown("""
+    <div class="success-box" style="text-align: center; padding: 2rem;">
+        <h2 style="margin: 0;">📧 Contact Email</h2>
+        <h1 style="color: #2E7D32; margin: 1rem 0;">dmcpexam2020@gmail.com</h1>
+        <p style="font-size: 1.1rem; margin: 0;">We typically respond within 24-48 hours</p>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("""
     <div class="info-banner">
         <strong>Get in Touch</strong><br>
@@ -552,7 +563,7 @@ def show_contact_page():
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("### 📧 Email")
+        st.markdown("### 📧 Email Details")
         st.markdown("**Contact Email:** dmcpexam2020@gmail.com")
         st.markdown("**Response Time:** Within 24-48 hours")
         st.markdown("**Business Hours:** Mon-Fri, 9 AM - 6 PM IST")
