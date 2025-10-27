@@ -144,10 +144,10 @@ def main():
     st.markdown("""
     <div class="info-banner">
         <strong>🎯 Your Complete Home Loan Command Center!</strong><br>
-        • <strong>12+ Payment Strategies:</strong> Save lakhs and finish your loan years early<br>
+        • <strong>12 Payment Strategies:</strong> 1 FREE preview + 11 premium strategies (₹99)<br>
         • <strong>Interactive Calculators:</strong> Real-time calculations for every strategy<br>
         • <strong>Property Business Tools:</strong> Rental income, payment gateways, and more<br>
-        • <strong>100% Free:</strong> No hidden costs, no registrations, just actionable insights
+        • <strong>Transparent Pricing:</strong> Try 1 free, unlock all 12 for just ₹99
     </div>
     """, unsafe_allow_html=True)
 
@@ -175,7 +175,7 @@ def main():
         st.markdown("""
         <div class="stats-box">
             <div class="stats-number">100%</div>
-            <div class="stats-label">Razorpay Approval</div>
+            <div class="stats-label">Secure Payments</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -185,8 +185,9 @@ def main():
     # Preview section with strategy screenshots
     st.markdown("""
     <div class="info-box">
-        <strong>🎯 Get Access to 12 Proven Strategies</strong><br>
-        Unlock detailed calculators and step-by-step implementation guides for just <strong>₹99 (One-time payment)</strong>
+        <strong>🎯 12 Proven Strategies Available</strong><br>
+        <strong>1 Strategy FREE</strong> - Try "Bi-Weekly Payment Hack" with no payment<br>
+        <strong>11 Premium Strategies</strong> - Unlock all for just <strong>₹99 (One-time payment via secure payment gateway)</strong>
     </div>
     """, unsafe_allow_html=True)
 
@@ -562,7 +563,7 @@ def show_privacy_policy_page():
 
     ## 7. Third-Party Services
 
-    Our Service may use third-party services (like Razorpay for payment collection guides). These services have their own privacy policies, and we encourage you to review them.
+    Our Service may use third-party payment gateways for payment processing. These services have their own privacy policies, and we encourage you to review them.
 
     ## 8. Children's Privacy
 
@@ -618,11 +619,10 @@ def show_refund_policy_page():
 
     ## Payment Processing
 
-    All payments are processed through:
-    - **Razorpay** (Primary payment gateway)
-    - **PayU** (Alternative payment gateway)
-
-    Both gateways are secure, encrypted, and PCI-DSS compliant.
+    All payments are processed through secure payment gateways that are:
+    - Encrypted and PCI-DSS compliant
+    - Support multiple payment methods
+    - Fully secure and trusted
 
     ## Before You Purchase
 
@@ -681,7 +681,7 @@ def show_cancellation_policy_page():
 
     ## Payment Processing
 
-    All payments through **Razorpay** or **PayU** are:
+    All payments through our secure payment gateway are:
     - Processed instantly
     - Final and binding
     - Non-cancellable once transaction is complete
@@ -771,31 +771,20 @@ def show_checkout_page():
     st.markdown("---")
     st.markdown("### 💳 Payment Methods")
 
-    col_pay1, col_pay2 = st.columns(2)
+    st.markdown("""
+    Our secure payment gateway supports:
+    - 💳 **Credit & Debit Cards** - All major cards accepted
+    - 📱 **UPI** - Google Pay, PhonePe, Paytm, and more
+    - 🏦 **Net Banking** - All major Indian banks
+    - 💰 **Wallets** - Multiple wallet options
+    - 💳 **EMI Options** - Available for select cards
 
-    with col_pay1:
-        st.markdown("""
-        #### Razorpay (Primary)
-        - 💳 Credit & Debit Cards
-        - 📱 UPI (Google Pay, PhonePe, Paytm)
-        - 🏦 Net Banking
-        - 💰 Wallets
-        - ✅ PCI DSS Compliant
-        - 🔒 256-bit SSL Encryption
-        """)
-
-    with col_pay2:
-        st.markdown("""
-        #### PayU (Alternative)
-        - 💳 All Major Cards
-        - 📱 UPI Payments
-        - 🏦 Net Banking
-        - 💰 EMI Options
-        - ✅ Secure & Trusted
-        - 🔒 Bank-grade Security
-        """)
-
-    st.info("**Both payment gateways are fully secure, encrypted, and compliant with Indian banking regulations.**")
+    🔒 **Security Features:**
+    - ✅ PCI DSS Compliant
+    - ✅ 256-bit SSL Encryption
+    - ✅ Bank-grade Security
+    - ✅ Compliant with Indian banking regulations
+    """)
 
     st.markdown("---")
     st.markdown("### 💰 Order Summary")
@@ -835,11 +824,11 @@ def show_checkout_page():
         st.markdown("")
 
         # Payment button
-        if st.button("💳 Proceed to Payment (Razorpay/PayU)", use_container_width=True, type="primary"):
+        if st.button("💳 Proceed to Secure Payment", use_container_width=True, type="primary"):
             st.info("""
             **Payment Gateway Integration**
 
-            This button will redirect you to our secure payment gateway (Razorpay or PayU) where you can complete your payment using:
+            This button will redirect you to our secure payment gateway where you can complete your payment using:
             - Credit/Debit Cards
             - UPI
             - Net Banking
