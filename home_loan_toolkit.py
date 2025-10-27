@@ -194,12 +194,80 @@ def main():
     st.markdown("---")
     st.markdown("### 🆓 Strategy #1: Bi-Weekly Payment Hack (FREE)")
 
-    # Import and display the bi-weekly calculator
-    try:
-        from strategy_calculators import show_bi_weekly_calculator
-        show_bi_weekly_calculator()
-    except ImportError:
-        st.warning("Calculator module not found. Please ensure strategy_calculators.py is in the same directory.")
+    # Display the bi-weekly calculator inline (avoiding import conflicts)
+    st.markdown("""
+    ### How It Works
+    Pay **half your EMI every 2 weeks** instead of full EMI monthly.
+
+    **The Magic:**
+    - 12 months = 12 monthly EMIs
+    - 52 weeks ÷ 2 = 26 bi-weekly payments = **13 full EMIs per year**
+    - You pay 1 extra EMI annually without realizing it!
+
+    **Why It Works:**
+    - Psychologically easier (smaller, frequent payments)
+    - Reduces principal faster
+    - Interest calculated on lower balance
+    """)
+
+    st.markdown("---")
+    st.markdown("### 🧮 Calculator")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        bw_loan = st.number_input("Loan Amount (₹)", min_value=500000, max_value=100000000,
+                                  value=5000000, step=100000, key="bw_loan")
+        bw_rate = st.number_input("Interest Rate (%)", min_value=5.0, max_value=15.0,
+                                  value=8.5, step=0.1, key="bw_rate")
+        bw_tenure = st.slider("Tenure (Years)", 5, 30, 20, key="bw_tenure")
+
+    # Calculate regular EMI
+    bw_months = bw_tenure * 12
+    bw_monthly_rate = bw_rate / (12 * 100)
+    bw_emi = bw_loan * bw_monthly_rate * (1 + bw_monthly_rate)**bw_months / ((1 + bw_monthly_rate)**bw_months - 1)
+    bw_total_regular = bw_emi * bw_months
+    bw_interest_regular = bw_total_regular - bw_loan
+
+    # Simulate bi-weekly payment (13 EMIs per year)
+    bw_outstanding = bw_loan
+    bw_total_interest_biweekly = 0
+    bw_months_elapsed = 0
+
+    while bw_outstanding > 0 and bw_months_elapsed < bw_months:
+        # 13 EMIs per year instead of 12
+        annual_payment = bw_emi * 13
+        for month in range(12):
+            if bw_outstanding <= 0:
+                break
+            interest = bw_outstanding * bw_monthly_rate
+            principal = (annual_payment / 12) - interest
+            bw_outstanding -= principal
+            bw_total_interest_biweekly += interest
+            bw_months_elapsed += 1
+
+    bw_savings = bw_interest_regular - bw_total_interest_biweekly
+    bw_time_saved = bw_months - bw_months_elapsed
+
+    with col2:
+        st.metric("Regular Monthly EMI", f"₹{bw_emi:,.0f}")
+        st.metric("Bi-Weekly Payment", f"₹{bw_emi/2:,.0f}", help="Pay this every 2 weeks")
+        st.metric("Interest Saved", f"₹{bw_savings:,.0f}",
+                 delta=f"Save {(bw_savings/bw_interest_regular)*100:.1f}%")
+        st.metric("Time Saved", f"{bw_time_saved/12:.1f} years",
+                 delta=f"{bw_time_saved} months")
+
+    st.markdown(f"""
+    **Your Results:**
+    - Regular EMI: ₹{bw_emi:,.0f} × {bw_months} months = ₹{bw_interest_regular:,.0f} interest
+    - Bi-weekly: Pay ₹{bw_emi/2:,.0f} every 2 weeks
+    - **Save ₹{bw_savings:,.0f} in interest + Close loan {bw_time_saved/12:.1f} years early!**
+
+    **Implementation (India-specific):**
+    - Most banks don't support bi-weekly auto-debit
+    - **Workaround:** Manually prepay ₹{bw_emi:,.0f} once a year (mimics 13th EMI)
+    - Or set up automated prepayment every 6 months (₹{bw_emi/2:,.0f} × 2)
+    """)
 
     st.markdown("---")
     st.markdown("### 🔒 11 Premium Strategies - Unlock All for ₹99")
