@@ -1,6 +1,6 @@
 import streamlit as st
 
-# Admin Configuration
+# Admin Configuration - admins get free access to all strategies
 ADMIN_EMAILS = [
     "razorpay@razorpay.com",
     "nayanlc19@gmail.com"
