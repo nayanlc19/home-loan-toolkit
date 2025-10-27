@@ -127,7 +127,6 @@ def main():
         <strong>🎯 Your Complete Home Loan Command Center!</strong><br>
         • <strong>12 Payment Strategies:</strong> 1 FREE preview + 11 premium strategies (₹99)<br>
         • <strong>Interactive Calculators:</strong> Real-time calculations for every strategy<br>
-        • <strong>Property Business Tools:</strong> Rental income, payment gateways, and more<br>
         • <strong>Transparent Pricing:</strong> Try 1 free, unlock all 12 for just ₹99
     </div>
     """, unsafe_allow_html=True)
