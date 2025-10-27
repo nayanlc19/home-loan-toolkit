@@ -182,51 +182,140 @@ def main():
     st.markdown("---")
     st.markdown("## 💰 Home Loan Payment Strategies")
 
-    # Preview section with strategy screenshots
+    # FREE STRATEGY - Show the full calculator
     st.markdown("""
-    <div class="info-box">
-        <strong>🎯 12 Proven Strategies Available</strong><br>
-        <strong>1 Strategy FREE</strong> - Try "Bi-Weekly Payment Hack" with no payment<br>
-        <strong>11 Premium Strategies</strong> - Unlock all for just <strong>₹99 (One-time payment via secure payment gateway)</strong>
+    <div class="success-box">
+        <strong>🎁 FREE PREVIEW STRATEGY - Try Before You Buy!</strong><br>
+        Below is the complete <strong>Bi-Weekly Payment Hack</strong> strategy with full interactive calculator.<br>
+        Experience the power of our strategies for FREE. Unlock all 11 remaining strategies for just ₹99!
     </div>
     """, unsafe_allow_html=True)
 
-    # Strategy preview images
-    st.markdown("### 📸 Preview: What You'll Get")
+    st.markdown("---")
+    st.markdown("### 🆓 Strategy #1: Bi-Weekly Payment Hack (FREE)")
 
-    preview_col1, preview_col2, preview_col3 = st.columns(3)
+    # Import and display the bi-weekly calculator
+    try:
+        from strategy_calculators import show_bi_weekly_calculator
+        show_bi_weekly_calculator()
+    except ImportError:
+        st.warning("Calculator module not found. Please ensure strategy_calculators.py is in the same directory.")
 
-    with preview_col1:
+    st.markdown("---")
+    st.markdown("### 🔒 11 Premium Strategies - Unlock All for ₹99")
+
+    st.info("💳 **Get full access to all 12 strategies (including advanced calculators & comparison tools) for a one-time payment of ₹99**")
+
+    # Show locked strategies in a grid
+    st.markdown("#### 🟢 Low Risk Strategies (3 more locked)")
+    lock_col1, lock_col2, lock_col3 = st.columns(3)
+
+    with lock_col1:
         st.markdown("""
-        **🟢 Low Risk Strategies**
-        - Bi-Weekly Payment Hack
-        - Step-Up EMI Strategy
-        - Tax Refund Amplification
-        - Rental Escalation Prepayment
+        **🔒 2. Step-Up EMI Strategy**
+        - Save: ₹18-25L
+        - Time saved: 7 years
+        - Complexity: ⭐⭐ Moderate
 
-        *Save ₹8-25L & finish 3-7 years early*
+        *Increase EMI with salary hikes*
         """)
 
-    with preview_col2:
+    with lock_col2:
         st.markdown("""
-        **🟡 Medium Risk Strategies**
-        - SIP Offset Strategy ⭐
-        - Rental Arbitrage
-        - Credit Card Float
-        - Reverse FD Laddering
+        **🔒 3. Tax Refund Amplification**
+        - Save: ₹5-8L extra
+        - Complexity: ⭐ Simple
+        - Best for: 30% tax bracket
 
-        *Build wealth while repaying loans*
+        *Compound your tax savings*
         """)
 
-    with preview_col3:
+    with lock_col3:
         st.markdown("""
-        **🔴 Advanced Strategies**
-        - Loan Chunking
-        - Bonus Deferral + Debt Fund
-        - Debt Fund SWP
-        - Salary Account Arbitrage
+        **🔒 4. Rental Escalation Prepayment**
+        - Save: Varies by rent growth
+        - Complexity: ⭐ Simple
+        - Requirement: Rental property
 
-        *Maximum impact strategies*
+        *Use rent increases to prepay*
+        """)
+
+    st.markdown("#### 🟡 Medium Risk Strategies (4 locked)")
+    lock_col4, lock_col5, lock_col6, lock_col7 = st.columns(4)
+
+    with lock_col4:
+        st.markdown("""
+        **🔒 5. SIP Offset Strategy ⭐**
+        - Save: ₹15-30L surplus
+        - Best for: Age < 35
+
+        *Invest instead of prepay*
+        """)
+
+    with lock_col5:
+        st.markdown("""
+        **🔒 6. Rental Arbitrage**
+        - Save: ₹10-20L
+        - Time saved: 5 years
+
+        *Live cheaply, prepay difference*
+        """)
+
+    with lock_col6:
+        st.markdown("""
+        **🔒 7. Credit Card Float**
+        - Save: ₹2.6L + cashback
+        - Complexity: ⭐⭐ Moderate
+
+        *45-day float strategy*
+        """)
+
+    with lock_col7:
+        st.markdown("""
+        **🔒 8. Reverse FD Laddering**
+        - Save: ₹8-15L
+        - Time saved: 4 years
+
+        *Forced prepayment discipline*
+        """)
+
+    st.markdown("#### 🔴 Advanced Strategies (4 locked)")
+    lock_col8, lock_col9, lock_col10, lock_col11 = st.columns(4)
+
+    with lock_col8:
+        st.markdown("""
+        **🔒 9. Loan Chunking**
+        - Save: ₹14L on ₹50L loan
+        - Complexity: ⭐⭐⭐ Complex
+
+        *Split into multiple tenures*
+        """)
+
+    with lock_col9:
+        st.markdown("""
+        **🔒 10. Bonus Deferral + Debt Fund**
+        - Save: ₹15-25L
+        - Complexity: ⭐⭐⭐⭐ Very Complex
+
+        *Tax-efficient prepayment*
+        """)
+
+    with lock_col10:
+        st.markdown("""
+        **🔒 11. Debt Fund SWP**
+        - Save: ₹5-10L + liquidity
+        - Complexity: ⭐⭐⭐ Complex
+
+        *Maintain emergency fund*
+        """)
+
+    with lock_col11:
+        st.markdown("""
+        **🔒 12. Salary Account Arbitrage**
+        - Save: ₹2.8L over 20 years
+        - Complexity: ⭐ Simple
+
+        *Earn while you wait (7% vs 3.5%)*
         """)
 
     st.markdown("---")
