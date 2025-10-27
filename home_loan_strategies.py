@@ -146,6 +146,36 @@ st.markdown("""
 if 'selected_strategy' not in st.session_state:
     st.session_state.selected_strategy = None
 
+# Free strategy configuration - only these strategies are accessible without payment
+FREE_STRATEGY_IDS = ["bi_weekly"]  # Strategy #1 is free preview
+
+# Admin Configuration - admins get free access to ALL strategies
+ADMIN_EMAILS = [
+    "razorpay@razorpay.com",
+    "nayanlc19@gmail.com"
+]
+
+def is_admin(email):
+    """Check if the given email is an admin"""
+    if not email:
+        return False
+    return email.lower().strip() in [admin.lower() for admin in ADMIN_EMAILS]
+
+def can_access_strategy(strategy_id):
+    """Check if user can access a strategy (free, paid, or admin)"""
+    # Free strategies are accessible to everyone
+    if strategy_id in FREE_STRATEGY_IDS:
+        return True
+
+    # Check if user is admin
+    user_email = st.session_state.get('user_email', '')
+    if is_admin(user_email):
+        return True
+
+    # Check if user has paid
+    has_paid = st.session_state.get('paid', False)
+    return has_paid
+
 # Strategy definitions
 STRATEGIES = {
     "low_risk": [
@@ -286,6 +316,19 @@ def main():
     if 'selected_category' in st.session_state and st.session_state.get('selected_category') == 'loans':
         st.markdown("---")
 
+    # Check if user has access to paid content
+    user_email = st.session_state.get('user_email', '')
+    is_admin_user = is_admin(user_email)
+    has_paid = st.session_state.get('paid', False)
+
+    # Show access status
+    if is_admin_user:
+        st.success(f"👑 Admin Access: {user_email} - All strategies unlocked!")
+    elif has_paid:
+        st.success("✅ Full Access: All 12 strategies unlocked!")
+    else:
+        st.info("🆓 **FREE PREVIEW**: Strategy #1 (Bi-Weekly Payment) is free. Unlock all 12 strategies for just ₹99!")
+
     # Info banner
     st.markdown("""
     <div class="info-banner">
@@ -331,10 +374,28 @@ def show_landing_page():
     cols = st.columns(2)
     for idx, strategy in enumerate(STRATEGIES["low_risk"]):
         with cols[idx % 2]:
+            is_free = strategy['id'] in FREE_STRATEGY_IDS
+            has_access = can_access_strategy(strategy['id'])
+
             st.markdown(create_strategy_card(strategy, "low-risk"), unsafe_allow_html=True)
-            if st.button(f"Explore {strategy['name']}", key=f"btn_{strategy['id']}", use_container_width=True):
-                st.session_state.selected_strategy = strategy['id']
-                st.rerun()
+
+            # Show different button text based on access
+            if is_free:
+                button_text = f"🆓 Explore {strategy['name']} (FREE PREVIEW)"
+            elif has_access:
+                button_text = f"Explore {strategy['name']}"
+            else:
+                button_text = f"🔒 {strategy['name']} - ₹99 to Unlock"
+
+            if st.button(button_text, key=f"btn_{strategy['id']}", use_container_width=True, type="primary" if is_free else "secondary"):
+                if has_access:
+                    st.session_state.selected_strategy = strategy['id']
+                    st.rerun()
+                else:
+                    st.warning("💳 This strategy requires payment of ₹99. Please complete checkout to unlock all strategies!")
+                    if st.button("Go to Checkout", key=f"checkout_{strategy['id']}"):
+                        st.session_state.selected_category = "checkout"
+                        st.rerun()
 
     # Medium Risk Strategies
     st.markdown('<div class="category-header">🟡 Medium Risk Strategies - Higher Rewards, Some Risk</div>', unsafe_allow_html=True)
@@ -342,10 +403,28 @@ def show_landing_page():
     cols = st.columns(2)
     for idx, strategy in enumerate(STRATEGIES["medium_risk"]):
         with cols[idx % 2]:
+            is_free = strategy['id'] in FREE_STRATEGY_IDS
+            has_access = can_access_strategy(strategy['id'])
+
             st.markdown(create_strategy_card(strategy, "medium-risk"), unsafe_allow_html=True)
-            if st.button(f"Explore {strategy['name']}", key=f"btn_{strategy['id']}", use_container_width=True):
-                st.session_state.selected_strategy = strategy['id']
-                st.rerun()
+
+            # Show different button text based on access
+            if is_free:
+                button_text = f"🆓 Explore {strategy['name']} (FREE PREVIEW)"
+            elif has_access:
+                button_text = f"Explore {strategy['name']}"
+            else:
+                button_text = f"🔒 {strategy['name']} - ₹99 to Unlock"
+
+            if st.button(button_text, key=f"btn_{strategy['id']}", use_container_width=True, type="primary" if is_free else "secondary"):
+                if has_access:
+                    st.session_state.selected_strategy = strategy['id']
+                    st.rerun()
+                else:
+                    st.warning("💳 This strategy requires payment of ₹99. Please complete checkout to unlock all strategies!")
+                    if st.button("Go to Checkout", key=f"checkout_{strategy['id']}"):
+                        st.session_state.selected_category = "checkout"
+                        st.rerun()
 
     # Advanced Strategies
     st.markdown('<div class="category-header">🔴 Advanced Strategies - Maximum Impact, Requires Planning</div>', unsafe_allow_html=True)
@@ -353,10 +432,28 @@ def show_landing_page():
     cols = st.columns(2)
     for idx, strategy in enumerate(STRATEGIES["advanced"]):
         with cols[idx % 2]:
+            is_free = strategy['id'] in FREE_STRATEGY_IDS
+            has_access = can_access_strategy(strategy['id'])
+
             st.markdown(create_strategy_card(strategy, "advanced"), unsafe_allow_html=True)
-            if st.button(f"Explore {strategy['name']}", key=f"btn_{strategy['id']}", use_container_width=True):
-                st.session_state.selected_strategy = strategy['id']
-                st.rerun()
+
+            # Show different button text based on access
+            if is_free:
+                button_text = f"🆓 Explore {strategy['name']} (FREE PREVIEW)"
+            elif has_access:
+                button_text = f"Explore {strategy['name']}"
+            else:
+                button_text = f"🔒 {strategy['name']} - ₹99 to Unlock"
+
+            if st.button(button_text, key=f"btn_{strategy['id']}", use_container_width=True, type="primary" if is_free else "secondary"):
+                if has_access:
+                    st.session_state.selected_strategy = strategy['id']
+                    st.rerun()
+                else:
+                    st.warning("💳 This strategy requires payment of ₹99. Please complete checkout to unlock all strategies!")
+                    if st.button("Go to Checkout", key=f"checkout_{strategy['id']}"):
+                        st.session_state.selected_category = "checkout"
+                        st.rerun()
 
     # Quick action buttons
     st.markdown("---")
