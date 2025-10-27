@@ -549,12 +549,13 @@ def show_contact_page():
     """Contact Us page with professional details"""
     st.title("📞 Contact Us")
 
-    # Prominent Email Display
+    # Prominent Contact Display
     st.markdown("""
     <div class="success-box" style="text-align: center; padding: 2rem;">
-        <h2 style="margin: 0;">📧 Contact Email</h2>
-        <h1 style="color: #2E7D32; margin: 1rem 0;">dmcpexam2020@gmail.com</h1>
-        <p style="font-size: 1.1rem; margin: 0;">We typically respond within 24-48 hours</p>
+        <h2 style="margin: 0;">📞 Contact Information</h2>
+        <h1 style="color: #2E7D32; margin: 1rem 0;">📧 dmcpexam2020@gmail.com</h1>
+        <h1 style="color: #2E7D32; margin: 0.5rem 0;">📱 +91 7021761291</h1>
+        <p style="font-size: 1.1rem; margin: 1rem 0;">We typically respond within 24-48 hours</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -568,8 +569,9 @@ def show_contact_page():
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("### 📧 Email Details")
-        st.markdown("**Contact Email:** dmcpexam2020@gmail.com")
+        st.markdown("### 📧 Contact Details")
+        st.markdown("**Email:** dmcpexam2020@gmail.com")
+        st.markdown("**Phone:** +91 7021761291")
         st.markdown("**Response Time:** Within 24-48 hours")
         st.markdown("**Business Hours:** Mon-Fri, 9 AM - 6 PM IST")
 
@@ -969,7 +971,8 @@ def show_shipping_policy_page():
 
     If you face any issues accessing your purchase after payment:
 
-    - **Contact**: dmcpexam2020@gmail.com
+    - **Email**: dmcpexam2020@gmail.com
+    - **Phone**: +91 7021761291
     - **Response Time**: Within 24-48 hours
     - **We'll resolve**: Any access issues immediately
 
