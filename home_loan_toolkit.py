@@ -262,6 +262,80 @@ def main():
     st.markdown('<div class="main-header">🏠 Home Loan Toolkit</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">Everything You Need to Master Your Home Loan Journey</div>', unsafe_allow_html=True)
 
+    # Google Sign-In/Sign-Up in header
+    user_email = st.session_state.get('user_email', '')
+    user_name = st.session_state.get('user_name', '')
+    user_picture = st.session_state.get('user_picture', '')
+
+    # Create header with auth buttons
+    col_left, col_center, col_right = st.columns([2, 3, 2])
+
+    with col_right:
+        if user_email:
+            # Show user profile
+            st.markdown(f"""
+            <div style="text-align: right; padding: 1rem 0;">
+                <img src="{user_picture}" style="width: 32px; height: 32px; border-radius: 50%; vertical-align: middle; margin-right: 8px;" />
+                <span style="vertical-align: middle;"><strong>{user_name or user_email}</strong></span>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("🚪 Sign Out", key="signout_header"):
+                st.session_state.clear()
+                st.rerun()
+        else:
+            # Show Google Sign-In button
+            st.markdown("""
+            <div style="text-align: right; padding: 0.5rem 0;">
+            </div>
+            """, unsafe_allow_html=True)
+
+            if GOOGLE_CLIENT_ID:
+                google_signin_button_html = f"""
+                <script src="https://accounts.google.com/gsi/client" async defer></script>
+                <div id="g_id_onload"
+                     data-client_id="{GOOGLE_CLIENT_ID}"
+                     data-callback="handleCredentialResponse"
+                     data-auto_prompt="false">
+                </div>
+                <div class="g_id_signin"
+                     data-type="standard"
+                     data-size="medium"
+                     data-theme="outline"
+                     data-text="signin_with"
+                     data-shape="rectangular"
+                     data-logo_alignment="left">
+                </div>
+                <script>
+                function handleCredentialResponse(response) {{
+                    // Reload page with credential in URL
+                    window.location.href = window.location.pathname + '?google_credential=' + response.credential;
+                }}
+                </script>
+                """
+                components.html(google_signin_button_html, height=50)
+
+                # Check for Google credential in URL
+                google_credential = query_params.get('google_credential', None)
+                if google_credential:
+                    try:
+                        id_info = id_token.verify_oauth2_token(
+                            google_credential,
+                            google_requests.Request(),
+                            GOOGLE_CLIENT_ID
+                        )
+
+                        email_from_google = id_info.get('email')
+                        if email_from_google:
+                            st.session_state.user_email = email_from_google.lower().strip()
+                            st.session_state.user_name = id_info.get('name', '')
+                            st.session_state.user_picture = id_info.get('picture', '')
+                            # Clear URL param and reload
+                            st.query_params.clear()
+                            st.success(f"✅ Signed in as {email_from_google}")
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Sign-in error: {str(e)}")
+
     # Info banner
     st.markdown("""
     <div class="info-banner">
@@ -1236,58 +1310,13 @@ def show_checkout_page():
         user_email = st.session_state.get('user_email', '')
 
         if not user_email:
-            # Show Google Sign-In
-            st.markdown("### 🔐 Sign in with Google to Continue")
-            st.info("Sign in with your Google account to proceed with payment and access your purchase.")
+            # User not signed in - prompt to sign in
+            st.warning("⚠️ Please sign in with Google to continue with payment.")
+            st.info("Click the **'Sign in with Google'** button at the top-right of this page to proceed.")
 
-            if GOOGLE_CLIENT_ID:
-                # Google Sign-In button using HTML/JavaScript
-                google_signin_html = f"""
-                <script src="https://accounts.google.com/gsi/client" async defer></script>
-                <div id="g_id_onload"
-                     data-client_id="{GOOGLE_CLIENT_ID}"
-                     data-callback="handleCredentialResponse">
-                </div>
-                <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline"
-                     data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"
-                     style="display: flex; justify-content: center; margin: 2rem 0;">
-                </div>
-                <script>
-                function handleCredentialResponse(response) {{
-                    // Send credential to Streamlit
-                    window.parent.postMessage({{
-                        type: 'google_signin',
-                        credential: response.credential
-                    }}, '*');
-                }}
-                </script>
-                """
-                components.html(google_signin_html, height=80)
-
-                # Check for credential in query params
-                credential = st.query_params.get('credential', None)
-                if credential:
-                    try:
-                        # Verify the Google ID token
-                        id_info = id_token.verify_oauth2_token(
-                            credential,
-                            google_requests.Request(),
-                            GOOGLE_CLIENT_ID
-                        )
-
-                        user_email_from_google = id_info.get('email')
-                        if user_email_from_google:
-                            st.session_state.user_email = user_email_from_google.lower().strip()
-                            st.session_state.user_name = id_info.get('name', '')
-                            st.session_state.user_picture = id_info.get('picture', '')
-                            # Clear query params
-                            st.query_params.clear()
-                            st.success(f"✅ Signed in as {user_email_from_google}")
-                            st.rerun()
-                    except Exception as e:
-                        st.error(f"Error verifying Google Sign-In: {str(e)}")
-            else:
-                st.error("Google OAuth is not configured. Please contact support.")
+            if st.button("🔙 Back to Home", use_container_width=True):
+                st.session_state.selected_category = None
+                st.rerun()
         elif check_user_paid(user_email):
             st.success(f"✅ Payment already completed for {user_email}! You have full access to all strategies.")
             if st.button("🚀 Access All Strategies", use_container_width=True, type="primary"):
