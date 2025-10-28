@@ -1,4 +1,12 @@
 import streamlit as st
+import os
+import json
+from datetime import datetime
+from dotenv import load_dotenv
+import razorpay
+
+# Load environment variables
+load_dotenv()
 
 # Admin Configuration - admins get free access to all strategies
 ADMIN_EMAILS = [
@@ -6,9 +14,109 @@ ADMIN_EMAILS = [
     "nayanlc19@gmail.com"
 ]
 
+# Razorpay Configuration
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
+PAYMENT_AMOUNT = int(os.getenv('PAYMENT_AMOUNT', 9900))
+PAYMENT_CURRENCY = os.getenv('PAYMENT_CURRENCY', 'INR')
+
+# Initialize Razorpay client
+razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET)) if RAZORPAY_KEY_ID else None
+
+# Paid users database file
+PAID_USERS_FILE = 'paid_users.json'
+
 def is_admin(email):
     """Check if the given email is an admin"""
     return email.lower().strip() in [admin.lower() for admin in ADMIN_EMAILS]
+
+def load_paid_users():
+    """Load paid users from JSON file"""
+    try:
+        if os.path.exists(PAID_USERS_FILE):
+            with open(PAID_USERS_FILE, 'r') as f:
+                return json.load(f)
+        return {"paid_users": [], "payments": []}
+    except Exception as e:
+        st.error(f"Error loading paid users: {e}")
+        return {"paid_users": [], "payments": []}
+
+def save_paid_user(email, payment_id, amount):
+    """Save a paid user to the database"""
+    try:
+        data = load_paid_users()
+
+        # Add to paid users list if not already there
+        email_lower = email.lower().strip()
+        if email_lower not in data["paid_users"]:
+            data["paid_users"].append(email_lower)
+
+        # Add payment record
+        payment_record = {
+            "email": email_lower,
+            "payment_id": payment_id,
+            "amount": amount,
+            "currency": PAYMENT_CURRENCY,
+            "timestamp": datetime.now().isoformat()
+        }
+        data["payments"].append(payment_record)
+
+        # Save to file
+        with open(PAID_USERS_FILE, 'w') as f:
+            json.dump(data, f, indent=2)
+
+        return True
+    except Exception as e:
+        st.error(f"Error saving payment: {e}")
+        return False
+
+def check_user_paid(email):
+    """Check if user has paid"""
+    if not email:
+        return False
+
+    email_lower = email.lower().strip()
+
+    # Admins get free access
+    if is_admin(email_lower):
+        return True
+
+    # Check if user in paid list
+    data = load_paid_users()
+    return email_lower in data["paid_users"]
+
+def create_razorpay_payment_link(user_email):
+    """Create a Razorpay payment link for the user"""
+    try:
+        if not razorpay_client:
+            return None, "Razorpay is not configured"
+
+        payment_data = {
+            "amount": PAYMENT_AMOUNT,
+            "currency": PAYMENT_CURRENCY,
+            "description": "Home Loan Toolkit - Full Access Payment",
+            "customer": {
+                "name": "Customer",
+                "email": user_email
+            },
+            "notify": {
+                "sms": False,
+                "email": True
+            },
+            "reminder_enable": True,
+            "notes": {
+                "product": "Home Loan Toolkit",
+                "access_type": "Full Access",
+                "user_email": user_email
+            },
+            "callback_url": os.getenv('APP_URL', 'https://home-loan-toolkit.onrender.com'),
+            "callback_method": "get"
+        }
+
+        payment_link = razorpay_client.payment_link.create(payment_data)
+        return payment_link, None
+    except Exception as e:
+        return None, str(e)
 
 # Page configuration
 st.set_page_config(
@@ -116,6 +224,19 @@ if 'selected_category' not in st.session_state:
 
 def main():
     """Main application entry point"""
+
+    # Check for payment callback parameters in URL
+    query_params = st.query_params
+    if 'razorpay_payment_link_id' in query_params or 'razorpay_payment_id' in query_params:
+        st.success("🎉 Payment verification in progress...")
+        user_email = st.session_state.get('user_email', '')
+
+        if user_email and check_user_paid(user_email):
+            st.balloons()
+            st.success(f"✅ Payment successful! Welcome, {user_email}!")
+            st.info("You now have full access to all 12 strategies. Click 'Home Loan Strategies' below to get started.")
+        else:
+            st.info("⏳ Your payment is being verified. This may take a few moments. Please check back shortly or contact support if you don't get access within 10 minutes.")
 
     # Header
     st.markdown('<div class="main-header">🏠 Home Loan Toolkit</div>', unsafe_allow_html=True)
@@ -495,7 +616,7 @@ def route_to_category():
         # Check if user is admin or has paid
         user_email = st.session_state.get('user_email', '')
         is_admin_user = is_admin(user_email)
-        has_paid = st.session_state.get('paid', False)
+        has_paid = check_user_paid(user_email)
 
         if is_admin_user or has_paid:
             # Import and run home loan strategies
@@ -1091,19 +1212,77 @@ def show_checkout_page():
 
         st.markdown("")
 
-        # Payment button
-        if st.button("💳 Proceed to Secure Payment", use_container_width=True, type="primary"):
-            st.info("""
-            **Payment Gateway Integration**
+        # Get user email
+        user_email = st.session_state.get('user_email', '')
 
-            This button will redirect you to our secure payment gateway where you can complete your payment using:
-            - Credit/Debit Cards
-            - UPI
-            - Net Banking
-            - Wallets
+        if not user_email:
+            st.warning("⚠️ Please enter your email address on the home page to proceed with payment.")
+            if st.button("🏠 Go to Home Page", use_container_width=True):
+                st.session_state.selected_category = None
+                st.rerun()
+        elif check_user_paid(user_email):
+            st.success(f"✅ Payment already completed for {user_email}! You have full access to all strategies.")
+            if st.button("🚀 Access All Strategies", use_container_width=True, type="primary"):
+                st.session_state.selected_category = "loans"
+                st.rerun()
+        else:
+            # Payment button
+            if st.button("💳 Proceed to Secure Payment", use_container_width=True, type="primary"):
+                with st.spinner("Creating your secure payment link..."):
+                    payment_link, error = create_razorpay_payment_link(user_email)
 
-            *Note: Payment gateway integration is currently in setup phase. Contact dmcpexam2020@gmail.com for manual payment.*
-            """)
+                    if payment_link:
+                        st.success("✅ Payment link created successfully!")
+                        st.markdown(f"""
+                        ### 🔗 Your Secure Payment Link
+
+                        Click the button below to complete your payment:
+                        """)
+
+                        # Display payment link details
+                        st.info(f"""
+                        **Payment Details:**
+                        - Amount: ₹{PAYMENT_AMOUNT / 100:.2f}
+                        - Email: {user_email}
+                        - Payment Link ID: {payment_link.get('id', 'N/A')}
+                        """)
+
+                        # Create a clickable link
+                        payment_url = payment_link.get('short_url', '')
+                        if payment_url:
+                            st.markdown(f"""
+                            <div style="text-align: center; margin: 2rem 0;">
+                                <a href="{payment_url}" target="_blank">
+                                    <button style="
+                                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                        color: white;
+                                        padding: 1rem 3rem;
+                                        font-size: 1.2rem;
+                                        border: none;
+                                        border-radius: 10px;
+                                        cursor: pointer;
+                                        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+                                    ">
+                                        💳 Pay ₹99 Now (Secure Razorpay)
+                                    </button>
+                                </a>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                            st.markdown(f"**Direct Link:** {payment_url}")
+
+                        st.markdown("""
+                        ---
+                        **After Payment:**
+                        1. Complete the payment on Razorpay's secure page
+                        2. You'll be redirected back to this website
+                        3. Refresh this page and access all strategies
+
+                        **Note:** Payment may take a few seconds to verify. If you don't get immediate access, please refresh the page or contact support.
+                        """)
+                    else:
+                        st.error(f"❌ Error creating payment link: {error}")
+                        st.info("Please contact dmcpexam2020@gmail.com for assistance.")
 
     st.markdown("---")
     st.markdown("### 🔒 Security & Trust")

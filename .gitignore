@@ -46,3 +46,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Payment Database
+paid_users.json
+
+# Backups
+*_backup_*.py
