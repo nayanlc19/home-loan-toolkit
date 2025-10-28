@@ -554,9 +554,7 @@ def create_main_interface():
     # Economist-style theme with serif fonts
     economist_theme = gr.themes.Base(
         primary_hue="red",
-        secondary_hue="gray",
-        font=["Georgia", "Cambria", "Times New Roman", "serif"],
-        font_mono=["Courier New", "monospace"]
+        secondary_hue="gray"
     ).set(
         body_background_fill="#ffffff",
         body_text_color="#1a1a1a",
@@ -667,10 +665,10 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
     app = create_main_interface()
 
-    print(f"🚀 Starting Home Loan Toolkit on port {port}")
-    print(f"📧 Admin emails: {', '.join(ADMIN_EMAILS)}")
-    print(f"🔐 Google OAuth configured: {bool(GOOGLE_CLIENT_ID)}")
-    print(f"💳 Razorpay configured: {bool(razorpay_client)}")
+    print(f"Starting Home Loan Toolkit on port {port}")
+    print(f"Admin emails: {', '.join(ADMIN_EMAILS)}")
+    print(f"Google OAuth configured: {bool(GOOGLE_CLIENT_ID)}")
+    print(f"Razorpay configured: {bool(razorpay_client)}")
 
     app.launch(
         server_name="0.0.0.0",
