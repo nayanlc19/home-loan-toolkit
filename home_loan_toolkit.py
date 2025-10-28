@@ -245,88 +245,43 @@ if 'selected_category' not in st.session_state:
 def main():
     """Main application entry point"""
 
-    # Sidebar for Google Sign-In
-    with st.sidebar:
-        st.markdown("### 🔐 Account")
-
-        user_email = st.session_state.get('user_email', '')
-        user_name = st.session_state.get('user_name', '')
-        user_picture = st.session_state.get('user_picture', '')
-
-        if user_email:
-            # Show user profile in sidebar
-            if user_picture:
-                st.image(user_picture, width=60)
-            st.markdown(f"**{user_name or user_email}**")
-            st.markdown(f"_{user_email}_")
-
-            if check_user_paid(user_email):
-                st.success("✅ Premium Access")
-            else:
-                st.info("🆓 Free Access")
-
-            if st.button("🚪 Sign Out", use_container_width=True):
-                st.session_state.clear()
-                st.rerun()
-        else:
-            # Show Google Sign-In
-            st.info("Sign in to access premium features")
-
-            if GOOGLE_CLIENT_ID:
-                google_signin_html = f"""
-                <script src="https://accounts.google.com/gsi/client" async defer></script>
-                <div id="g_id_onload"
-                     data-client_id="{GOOGLE_CLIENT_ID}"
-                     data-callback="handleCredentialResponse"
-                     data-auto_prompt="false">
-                </div>
-                <div class="g_id_signin"
-                     data-type="standard"
-                     data-size="large"
-                     data-theme="outline"
-                     data-text="signin_with"
-                     data-shape="rectangular"
-                     data-logo_alignment="center"
-                     style="width: 100%;">
-                </div>
-                <script>
-                function handleCredentialResponse(response) {{
-                    window.location.href = window.location.pathname + '?google_credential=' + response.credential;
-                }}
-                </script>
-                """
-                components.html(google_signin_html, height=60)
-
-        st.markdown("---")
-        st.markdown("### 📞 Support")
-        st.markdown("**Email:** dmcpexam2020@gmail.com")
-        st.markdown("**Phone:** +91 7021761291")
-
     # Check for payment callback parameters in URL
     query_params = st.query_params
 
-    # Check for Google credential
-    google_credential = query_params.get('google_credential', None)
-    if google_credential and GOOGLE_CLIENT_ID:
+    # Check for Google OAuth code callback
+    code = query_params.get('code', None)
+    if code and GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
         try:
-            id_info = id_token.verify_oauth2_token(
-                google_credential,
-                google_requests.Request(),
-                GOOGLE_CLIENT_ID
-            )
+            import requests
+            # Exchange code for token
+            token_url = "https://oauth2.googleapis.com/token"
+            data = {
+                'code': code,
+                'client_id': GOOGLE_CLIENT_ID,
+                'client_secret': GOOGLE_CLIENT_SECRET,
+                'redirect_uri': APP_URL,
+                'grant_type': 'authorization_code'
+            }
+            response = requests.post(token_url, data=data)
+            tokens = response.json()
 
-            email_from_google = id_info.get('email')
-            if email_from_google:
-                st.session_state.user_email = email_from_google.lower().strip()
-                st.session_state.user_name = id_info.get('name', '')
-                st.session_state.user_picture = id_info.get('picture', '')
-                st.query_params.clear()
-                st.success(f"✅ Signed in as {email_from_google}")
-                st.rerun()
+            if 'id_token' in tokens:
+                id_info = id_token.verify_oauth2_token(
+                    tokens['id_token'],
+                    google_requests.Request(),
+                    GOOGLE_CLIENT_ID
+                )
+
+                email_from_google = id_info.get('email')
+                if email_from_google:
+                    st.session_state.user_email = email_from_google.lower().strip()
+                    st.session_state.user_name = id_info.get('name', '')
+                    st.session_state.user_picture = id_info.get('picture', '')
+                    st.query_params.clear()
+                    st.success(f"✅ Signed in as {email_from_google}")
+                    st.rerun()
         except Exception as e:
             st.error(f"Sign-in error: {str(e)}")
-
-    # Check for payment callback parameters in URL
     if 'razorpay_payment_link_id' in query_params or 'razorpay_payment_id' in query_params:
         st.success("🎉 Payment verification in progress...")
         user_email = st.session_state.get('user_email', '')
@@ -338,8 +293,25 @@ def main():
         else:
             st.info("⏳ Your payment is being verified. This may take a few moments. Please check back shortly or contact support if you don't get access within 10 minutes.")
 
-    # Header
-    st.markdown('<div class="main-header">🏠 Home Loan Toolkit</div>', unsafe_allow_html=True)
+    # Top navigation with auth
+    col1, col2, col3 = st.columns([3, 4, 2])
+
+    with col1:
+        st.markdown('<div class="main-header">🏠 Home Loan Toolkit</div>', unsafe_allow_html=True)
+
+    with col3:
+        user_email = st.session_state.get('user_email', '')
+        if user_email:
+            user_name = st.session_state.get('user_name', '')
+            st.write(f"👤 {user_name or user_email}")
+            if st.button("Sign Out", key="top_signout"):
+                st.session_state.clear()
+                st.rerun()
+        else:
+            # Create a button that links to Google OAuth
+            auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?client_id={GOOGLE_CLIENT_ID}&redirect_uri={APP_URL}&response_type=code&scope=openid%20email%20profile&access_type=offline"
+            st.markdown(f'<a href="{auth_url}" target="_self"><button style="background:#4285f4;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:14px;">🔐 Sign in with Google</button></a>', unsafe_allow_html=True)
+
     st.markdown('<div class="sub-header">Everything You Need to Master Your Home Loan Journey</div>', unsafe_allow_html=True)
 
     # Info banner
