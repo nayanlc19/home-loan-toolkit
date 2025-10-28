@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import os
 import json
 from datetime import datetime
@@ -6,7 +7,6 @@ from dotenv import load_dotenv
 import razorpay
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
-from streamlit_oauth import OAuth2Component
 
 # Load environment variables (optional - works without .env file)
 try:
@@ -1240,30 +1240,37 @@ def show_checkout_page():
             st.markdown("### 🔐 Sign in with Google to Continue")
             st.info("Sign in with your Google account to proceed with payment and access your purchase.")
 
-            # Initialize OAuth2Component
-            if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
-                oauth2 = OAuth2Component(
-                    client_id=GOOGLE_CLIENT_ID,
-                    client_secret=GOOGLE_CLIENT_SECRET,
-                    authorize_endpoint="https://accounts.google.com/o/oauth2/auth",
-                    token_endpoint="https://oauth2.googleapis.com/token",
-                    refresh_token_endpoint="https://oauth2.googleapis.com/token",
-                )
+            if GOOGLE_CLIENT_ID:
+                # Google Sign-In button using HTML/JavaScript
+                google_signin_html = f"""
+                <script src="https://accounts.google.com/gsi/client" async defer></script>
+                <div id="g_id_onload"
+                     data-client_id="{GOOGLE_CLIENT_ID}"
+                     data-callback="handleCredentialResponse">
+                </div>
+                <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline"
+                     data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"
+                     style="display: flex; justify-content: center; margin: 2rem 0;">
+                </div>
+                <script>
+                function handleCredentialResponse(response) {{
+                    // Send credential to Streamlit
+                    window.parent.postMessage({{
+                        type: 'google_signin',
+                        credential: response.credential
+                    }}, '*');
+                }}
+                </script>
+                """
+                components.html(google_signin_html, height=80)
 
-                # Display Google Sign-In button
-                result = oauth2.authorize_button(
-                    name="Sign in with Google",
-                    redirect_uri=REDIRECT_URI,
-                    scope="openid email profile",
-                    key="google_signin",
-                    use_container_width=True
-                )
-
-                if result and 'token' in result:
-                    # Extract user info from token
+                # Check for credential in query params
+                credential = st.query_params.get('credential', None)
+                if credential:
                     try:
+                        # Verify the Google ID token
                         id_info = id_token.verify_oauth2_token(
-                            result['token']['id_token'],
+                            credential,
                             google_requests.Request(),
                             GOOGLE_CLIENT_ID
                         )
@@ -1273,6 +1280,8 @@ def show_checkout_page():
                             st.session_state.user_email = user_email_from_google.lower().strip()
                             st.session_state.user_name = id_info.get('name', '')
                             st.session_state.user_picture = id_info.get('picture', '')
+                            # Clear query params
+                            st.query_params.clear()
                             st.success(f"✅ Signed in as {user_email_from_google}")
                             st.rerun()
                     except Exception as e:
