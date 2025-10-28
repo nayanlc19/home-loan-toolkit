@@ -235,6 +235,78 @@ st.markdown("""
         color: #666;
         margin-top: 0.5rem;
     }
+
+    /* Compact spacing styles */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 0.5rem !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+        max-width: 1200px !important;
+    }
+
+    .element-container {
+        margin-bottom: 0.5rem !important;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        margin-top: 0.75rem !important;
+        margin-bottom: 0.5rem !important;
+        padding-top: 0.25rem !important;
+        padding-bottom: 0.25rem !important;
+    }
+
+    .stMarkdown {
+        margin-bottom: 0.5rem !important;
+    }
+
+    .row-widget {
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    div[data-testid="stVerticalBlock"] > div {
+        padding-top: 0.25rem !important;
+        padding-bottom: 0.25rem !important;
+    }
+
+    .stAlert {
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.5rem !important;
+        padding: 0.75rem !important;
+    }
+
+    .stButton {
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    .info-banner {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        padding: 1rem !important;
+        border-radius: 15px;
+        border-left: 6px solid #1976D2;
+        margin: 1rem 0 !important;
+    }
+
+    .sub-header {
+        font-size: 1.3rem;
+        color: #666;
+        text-align: center;
+        margin-bottom: 1.5rem !important;
+    }
+
+    .category-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1.5rem !important;
+        border-radius: 15px;
+        margin: 0.75rem 0 !important;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: white;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
 </style>
 """, unsafe_allow_html=True)
 
