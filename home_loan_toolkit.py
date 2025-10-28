@@ -1216,10 +1216,23 @@ def show_checkout_page():
         user_email = st.session_state.get('user_email', '')
 
         if not user_email:
-            st.warning("⚠️ Please enter your email address on the home page to proceed with payment.")
-            if st.button("🏠 Go to Home Page", use_container_width=True):
-                st.session_state.selected_category = None
-                st.rerun()
+            # Show email input form on checkout page
+            st.markdown("### 📧 Enter Your Email to Continue")
+            st.info("We'll send your payment confirmation and access details to this email.")
+
+            checkout_email = st.text_input(
+                "Email Address",
+                placeholder="your.email@example.com",
+                help="Enter your email to proceed with payment",
+                key="checkout_email_input"
+            )
+
+            if st.button("Continue to Payment", use_container_width=True, type="primary"):
+                if checkout_email and '@' in checkout_email:
+                    st.session_state.user_email = checkout_email.lower().strip()
+                    st.rerun()
+                else:
+                    st.error("Please enter a valid email address")
         elif check_user_paid(user_email):
             st.success(f"✅ Payment already completed for {user_email}! You have full access to all strategies.")
             if st.button("🚀 Access All Strategies", use_container_width=True, type="primary"):
