@@ -90,7 +90,11 @@ def login():
                     "redirect_uris": [REDIRECT_URI]
                 }
             },
-            scopes=['openid', 'email', 'profile'],
+            scopes=[
+                'openid',
+                'https://www.googleapis.com/auth/userinfo.email',
+                'https://www.googleapis.com/auth/userinfo.profile'
+            ],
             redirect_uri=REDIRECT_URI
         )
 
@@ -124,7 +128,11 @@ def oauth_callback():
                     "redirect_uris": [REDIRECT_URI]
                 }
             },
-            scopes=['openid', 'email', 'profile'],
+            scopes=[
+                'openid',
+                'https://www.googleapis.com/auth/userinfo.email',
+                'https://www.googleapis.com/auth/userinfo.profile'
+            ],
             redirect_uri=REDIRECT_URI
         )
 
