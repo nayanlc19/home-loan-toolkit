@@ -8,6 +8,8 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from google_auth_oauthlib.flow import Flow
 import secrets
+from policy_pages import (CONTACT_PAGE, TERMS_PAGE, PRIVACY_PAGE,
+                          REFUND_PAGE, CANCELLATION_PAGE, SHIPPING_PAGE)
 
 # Load environment variables
 try:
@@ -549,7 +551,39 @@ def create_checkout_tab(user_email):
 def create_main_interface():
     """Create the main Gradio interface"""
 
-    with gr.Blocks(title="Home Loan Toolkit", theme=gr.themes.Soft()) as app:
+    # Economist-style theme with serif fonts
+    economist_theme = gr.themes.Base(
+        primary_hue="red",
+        secondary_hue="gray",
+        font=["Georgia", "Cambria", "Times New Roman", "serif"],
+        font_mono=["Courier New", "monospace"]
+    ).set(
+        body_background_fill="#ffffff",
+        body_text_color="#1a1a1a",
+        body_text_size="*text_lg",
+        button_primary_background_fill="#e3120b",
+        button_primary_background_fill_hover="#c10f09",
+        button_primary_text_color="#ffffff"
+    )
+
+    with gr.Blocks(title="Home Loan Toolkit", theme=economist_theme, css="""
+        .gradio-container {
+            font-family: Georgia, 'Times New Roman', serif !important;
+            max-width: 1200px !important;
+            margin: auto !important;
+        }
+        h1, h2, h3 {
+            font-family: Georgia, 'Times New Roman', serif !important;
+            font-weight: 600 !important;
+            color: #1a1a1a !important;
+        }
+        .markdown-text {
+            font-family: Georgia, 'Times New Roman', serif !important;
+            font-size: 17px !important;
+            line-height: 1.6 !important;
+            color: #1a1a1a !important;
+        }
+    """) as app:
         # Session state for user
         user_email_state = gr.State("")
 
@@ -577,6 +611,24 @@ def create_main_interface():
 
             with gr.Tab("💳 Checkout"):
                 checkout_tab = gr.Column()
+
+            with gr.Tab("📞 Contact"):
+                gr.Markdown(CONTACT_PAGE)
+
+            with gr.Tab("📋 Terms & Conditions"):
+                gr.Markdown(TERMS_PAGE)
+
+            with gr.Tab("🔒 Privacy Policy"):
+                gr.Markdown(PRIVACY_PAGE)
+
+            with gr.Tab("↩️ Refund Policy"):
+                gr.Markdown(REFUND_PAGE)
+
+            with gr.Tab("❌ Cancellation Policy"):
+                gr.Markdown(CANCELLATION_PAGE)
+
+            with gr.Tab("📦 Shipping & Delivery"):
+                gr.Markdown(SHIPPING_PAGE)
 
         # Footer
         gr.Markdown("""
