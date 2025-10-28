@@ -8,6 +8,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from google_auth_oauthlib.flow import Flow
 import secrets
+from flask import Flask, request, redirect, session as flask_session
 from policy_pages import (CONTACT_PAGE, TERMS_PAGE, PRIVACY_PAGE,
                           REFUND_PAGE, CANCELLATION_PAGE, SHIPPING_PAGE)
 
@@ -659,19 +660,90 @@ def create_main_interface():
 
     return app
 
+# ===== FLASK + GRADIO WRAPPER =====
+
+# Create Flask app
+flask_app = Flask(__name__)
+flask_app.secret_key = os.environ.get('FLASK_SECRET_KEY', secrets.token_hex(32))
+
+# Store authenticated users (in-memory for now)
+authenticated_users = {}
+
+@flask_app.route('/login/callback')
+def oauth_callback():
+    """Handle Google OAuth callback"""
+    try:
+        code = request.args.get('code')
+        if not code:
+            return "Error: No authorization code received", 400
+
+        # Exchange code for tokens
+        flow = Flow.from_client_config(
+            {
+                "web": {
+                    "client_id": GOOGLE_CLIENT_ID,
+                    "client_secret": GOOGLE_CLIENT_SECRET,
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "redirect_uris": [REDIRECT_URI]
+                }
+            },
+            scopes=['openid', 'email', 'profile'],
+            redirect_uri=REDIRECT_URI
+        )
+
+        flow.fetch_token(code=code)
+        credentials = flow.credentials
+
+        # Verify the ID token
+        id_info = id_token.verify_oauth2_token(
+            credentials.id_token,
+            google_requests.Request(),
+            GOOGLE_CLIENT_ID
+        )
+
+        # Extract user info
+        email = id_info.get('email')
+        name = id_info.get('name', email)
+
+        if email:
+            # Store user session
+            session_id = secrets.token_hex(16)
+            authenticated_users[session_id] = {
+                'email': email,
+                'name': name,
+                'timestamp': datetime.now().isoformat()
+            }
+
+            # Redirect to main app with session cookie
+            response = redirect('/')
+            response.set_cookie('session_id', session_id, max_age=86400, httponly=True, secure=True, samesite='Lax')
+            return response
+        else:
+            return "Error: Could not retrieve email from Google", 400
+
+    except Exception as e:
+        print(f"OAuth callback error: {str(e)}")
+        return f"Authentication error: {str(e)}", 500
+
 # ===== MAIN ENTRY POINT =====
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
-    app = create_main_interface()
 
     print(f"Starting Home Loan Toolkit on port {port}")
     print(f"Admin emails: {', '.join(ADMIN_EMAILS)}")
     print(f"Google OAuth configured: {bool(GOOGLE_CLIENT_ID)}")
     print(f"Razorpay configured: {bool(razorpay_client)}")
 
-    app.launch(
+    # Create Gradio interface
+    gradio_app = create_main_interface()
+
+    # Mount Gradio on Flask
+    gradio_app.launch(
         server_name="0.0.0.0",
         server_port=port,
-        share=False
+        share=False,
+        app=flask_app,
+        app_kwargs={"debug": False}
     )
