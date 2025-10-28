@@ -4,6 +4,9 @@ import json
 from datetime import datetime
 from dotenv import load_dotenv
 import razorpay
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from streamlit_oauth import OAuth2Component
 
 # Load environment variables (optional - works without .env file)
 try:
@@ -33,6 +36,12 @@ try:
 except Exception as e:
     razorpay_client = None
     st.error(f"Error initializing Razorpay: {str(e)}")
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID') or os.environ.get('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET') or os.environ.get('GOOGLE_CLIENT_SECRET')
+APP_URL = os.getenv('APP_URL') or os.environ.get('APP_URL') or 'http://localhost:8501'
+REDIRECT_URI = f"{APP_URL}"
 
 # Paid users database file
 PAID_USERS_FILE = 'paid_users.json'
@@ -1227,23 +1236,49 @@ def show_checkout_page():
         user_email = st.session_state.get('user_email', '')
 
         if not user_email:
-            # Show email input form on checkout page
-            st.markdown("### 📧 Enter Your Email to Continue")
-            st.info("We'll send your payment confirmation and access details to this email.")
+            # Show Google Sign-In
+            st.markdown("### 🔐 Sign in with Google to Continue")
+            st.info("Sign in with your Google account to proceed with payment and access your purchase.")
 
-            checkout_email = st.text_input(
-                "Email Address",
-                placeholder="your.email@example.com",
-                help="Enter your email to proceed with payment",
-                key="checkout_email_input"
-            )
+            # Initialize OAuth2Component
+            if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
+                oauth2 = OAuth2Component(
+                    client_id=GOOGLE_CLIENT_ID,
+                    client_secret=GOOGLE_CLIENT_SECRET,
+                    authorize_endpoint="https://accounts.google.com/o/oauth2/auth",
+                    token_endpoint="https://oauth2.googleapis.com/token",
+                    refresh_token_endpoint="https://oauth2.googleapis.com/token",
+                )
 
-            if st.button("Continue to Payment", use_container_width=True, type="primary"):
-                if checkout_email and '@' in checkout_email:
-                    st.session_state.user_email = checkout_email.lower().strip()
-                    st.rerun()
-                else:
-                    st.error("Please enter a valid email address")
+                # Display Google Sign-In button
+                result = oauth2.authorize_button(
+                    name="Sign in with Google",
+                    redirect_uri=REDIRECT_URI,
+                    scope="openid email profile",
+                    key="google_signin",
+                    use_container_width=True
+                )
+
+                if result and 'token' in result:
+                    # Extract user info from token
+                    try:
+                        id_info = id_token.verify_oauth2_token(
+                            result['token']['id_token'],
+                            google_requests.Request(),
+                            GOOGLE_CLIENT_ID
+                        )
+
+                        user_email_from_google = id_info.get('email')
+                        if user_email_from_google:
+                            st.session_state.user_email = user_email_from_google.lower().strip()
+                            st.session_state.user_name = id_info.get('name', '')
+                            st.session_state.user_picture = id_info.get('picture', '')
+                            st.success(f"✅ Signed in as {user_email_from_google}")
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Error verifying Google Sign-In: {str(e)}")
+            else:
+                st.error("Google OAuth is not configured. Please contact support.")
         elif check_user_paid(user_email):
             st.success(f"✅ Payment already completed for {user_email}! You have full access to all strategies.")
             if st.button("🚀 Access All Strategies", use_container_width=True, type="primary"):
