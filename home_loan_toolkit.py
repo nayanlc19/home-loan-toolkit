@@ -5,8 +5,11 @@ from datetime import datetime
 from dotenv import load_dotenv
 import razorpay
 
-# Load environment variables
-load_dotenv()
+# Load environment variables (optional - works without .env file)
+try:
+    load_dotenv()
+except:
+    pass
 
 # Admin Configuration - admins get free access to all strategies
 ADMIN_EMAILS = [
@@ -15,13 +18,21 @@ ADMIN_EMAILS = [
 ]
 
 # Razorpay Configuration
-RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
-RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
-PAYMENT_AMOUNT = int(os.getenv('PAYMENT_AMOUNT', 9900))
-PAYMENT_CURRENCY = os.getenv('PAYMENT_CURRENCY', 'INR')
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID') or os.environ.get('RAZORPAY_KEY_ID')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET') or os.environ.get('RAZORPAY_KEY_SECRET')
+PAYMENT_AMOUNT = int(os.getenv('PAYMENT_AMOUNT') or os.environ.get('PAYMENT_AMOUNT') or '9900')
+PAYMENT_CURRENCY = os.getenv('PAYMENT_CURRENCY') or os.environ.get('PAYMENT_CURRENCY') or 'INR'
 
 # Initialize Razorpay client
-razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET)) if RAZORPAY_KEY_ID else None
+try:
+    if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+        razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+    else:
+        razorpay_client = None
+        st.warning("Razorpay credentials not found. Payment functionality will be limited.")
+except Exception as e:
+    razorpay_client = None
+    st.error(f"Error initializing Razorpay: {str(e)}")
 
 # Paid users database file
 PAID_USERS_FILE = 'paid_users.json'
