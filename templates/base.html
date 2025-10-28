@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Home Loan Toolkit{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header>
+        <nav class="nav-container">
+            <div class="nav-left">
+                <a href="/" class="logo">Home Loan Toolkit</a>
+            </div>
+            <div class="nav-right">
+                {% if is_authenticated %}
+                    <span class="user-name">{{ user_name }}</span>
+                    <a href="/logout" class="btn btn-secondary">Sign Out</a>
+                {% else %}
+                    <a href="/login" class="btn btn-primary">Sign in with Google</a>
+                {% endif %}
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <div class="footer-container">
+            <div class="footer-links">
+                <a href="/contact">Contact</a>
+                <a href="/terms">Terms</a>
+                <a href="/privacy">Privacy</a>
+                <a href="/refund">Refund</a>
+                <a href="/cancellation">Cancellation</a>
+                <a href="/shipping">Shipping</a>
+            </div>
+            <div class="footer-copyright">
+                <p>&copy; 2025 Home Loan Toolkit. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

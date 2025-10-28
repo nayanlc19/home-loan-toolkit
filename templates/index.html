@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Payment Success/Error Messages -->
+{% if request.args.get('payment') == 'success' %}
+<div class="alert alert-success">
+    Payment successful! You now have access to all 12 strategies.
+</div>
+{% elif request.args.get('payment') == 'error' %}
+<div class="alert alert-error">
+    Payment verification failed. Please contact support.
+</div>
+{% elif request.args.get('payment') == 'failed' %}
+<div class="alert alert-error">
+    Payment was not completed. Please try again.
+</div>
+{% endif %}
+
+<!-- Hero Section -->
+<div class="hero">
+    <h1>Master Your Home Loan</h1>
+    <p>Discover 12 proven strategies to save thousands and pay off your mortgage faster.</p>
+    {% if not has_paid %}
+    <p><strong>Try the FREE Bi-Weekly Strategy below, then unlock all 12 for just Rs 99!</strong></p>
+    {% endif %}
+</div>
+
+<!-- Checkout Section for Non-Paid Users -->
+{% if is_authenticated and not has_paid %}
+<div class="text-center mb-2">
+    <button onclick="handleCheckout()" class="btn btn-checkout">
+        Unlock All 12 Strategies for Rs 99
+    </button>
+    <p style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">One-time payment • Lifetime access</p>
+</div>
+{% elif not is_authenticated %}
+<div class="alert alert-info text-center">
+    Please sign in with Google to access the strategies and calculators.
+</div>
+{% endif %}
+
+<!-- Strategies Grid -->
+<div class="strategies-grid">
+    <!-- Strategy 1: Bi-Weekly Payment Hack (FREE) -->
+    <div class="strategy-card">
+        <h3>1. Bi-Weekly Payment Hack</h3>
+        <p><strong>FREE Strategy</strong></p>
+        <p>Pay half your monthly EMI every two weeks. Make 26 half-payments (13 full payments) per year instead of 12, significantly reducing interest.</p>
+
+        {% if is_authenticated %}
+        <div class="calculator-form">
+            <div class="form-group">
+                <label>Loan Amount (Rs)</label>
+                <input type="number" id="biweekly_loan" value="5000000" min="100000" step="100000">
+            </div>
+            <div class="form-group">
+                <label>Interest Rate (%)</label>
+                <input type="number" id="biweekly_rate" value="8.5" min="1" max="20" step="0.1">
+            </div>
+            <div class="form-group">
+                <label>Tenure (Years): <span class="range-value" id="biweekly_tenure_val">20</span></label>
+                <input type="range" id="biweekly_tenure" value="20" min="5" max="30" step="1" oninput="document.getElementById('biweekly_tenure_val').textContent = this.value">
+            </div>
+            <button onclick="calculateBiweekly()" class="btn btn-primary">Calculate</button>
+        </div>
+
+        <div id="biweekly_results" class="results hidden">
+            <h3>Results</h3>
+            <div class="result-item">
+                <span class="result-label">Monthly EMI (Traditional):</span>
+                <span class="result-value" id="biweekly_monthly_emi">-</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Bi-Weekly Payment:</span>
+                <span class="result-value" id="biweekly_payment">-</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Total Interest (Traditional):</span>
+                <span class="result-value" id="biweekly_traditional_interest">-</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Total Interest (Bi-Weekly):</span>
+                <span class="result-value" id="biweekly_interest">-</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Time Saved:</span>
+                <span class="result-value" id="biweekly_time_saved">-</span>
+            </div>
+            <div class="savings-highlight">
+                Total Savings: <span id="biweekly_savings">Rs 0</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="biweekly_chart"></canvas>
+            </div>
+        </div>
+        {% else %}
+        <p><em>Sign in to use the calculator</em></p>
+        {% endif %}
+    </div>
+
+    <!-- Strategy 2-12: Premium (Locked if not paid) -->
+    {% set strategies = [
+        {"num": 2, "name": "Round-Up Revolution", "desc": "Round up each EMI payment to the nearest thousand and apply the extra amount to principal, creating painless micro-payments."},
+        {"num": 3, "name": "Lump Sum Accelerator", "desc": "Apply windfalls (bonuses, tax refunds) directly to principal once or twice per year."},
+        {"num": 4, "name": "Re-Amortization Reset", "desc": "After making extra payments, request loan re-amortization to lower your EMI while keeping the same tenure."},
+        {"num": 5, "name": "Split Loan Arbitrage", "desc": "Divide your loan into fixed and floating portions to optimize interest rate changes."},
+        {"num": 6, "name": "Offset Account Optimizer", "desc": "Link your savings account to your home loan to offset the loan balance and reduce interest."},
+        {"num": 7, "name": "Redraw Facility Refinement", "desc": "Use redraw facilities strategically to access extra payments while maintaining lower interest."},
+        {"num": 8, "name": "Interest-Only Initial Phase", "desc": "Pay only interest initially while investing the difference, then aggressively pay down principal later."},
+        {"num": 9, "name": "Principal Pre-Payment Blitz", "desc": "Make one large pre-payment in the first 5 years when interest component is highest."},
+        {"num": 10, "name": "Loan Portability Play", "desc": "Transfer your loan to a lender offering better rates without losing accumulated benefits."},
+        {"num": 11, "name": "Top-Up Loan Leverage", "desc": "Use top-up loan strategically to consolidate higher-interest debt while maintaining tax benefits."},
+        {"num": 12, "name": "Balloon Payment Gambit", "desc": "Structure loan with smaller EMIs and a larger balloon payment, investing the difference meanwhile."}
+    ] %}
+
+    {% for strategy in strategies %}
+    <div class="strategy-card {% if not has_paid %}locked{% endif %}">
+        <h3>{{ strategy.num }}. {{ strategy.name }}</h3>
+        <p>{{ strategy.desc }}</p>
+        {% if has_paid %}
+            <p><em>Calculator coming soon...</em></p>
+        {% else %}
+            <p><em>🔒 Unlock for Rs 99 to access calculator</em></p>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+{% if not has_paid and is_authenticated %}
+<div class="text-center mt-2">
+    <button onclick="handleCheckout()" class="btn btn-checkout">
+        Unlock All 12 Strategies for Rs 99
+    </button>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Checkout Handler
+async function handleCheckout() {
+    try {
+        const response = await fetch('/checkout');
+        const data = await response.json();
+
+        if (data.error) {
+            alert(data.error);
+        } else if (data.payment_url) {
+            window.location.href = data.payment_url;
+        }
+    } catch (error) {
+        alert('Error creating payment link. Please try again.');
+        console.error(error);
+    }
+}
+
+// Bi-Weekly Calculator
+function calculateBiweekly() {
+    const loan = parseFloat(document.getElementById('biweekly_loan').value);
+    const rate = parseFloat(document.getElementById('biweekly_rate').value) / 100;
+    const tenure = parseFloat(document.getElementById('biweekly_tenure').value);
+
+    // Monthly calculation
+    const monthlyRate = rate / 12;
+    const months = tenure * 12;
+    const monthlyEMI = (loan * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
+    const traditionalInterest = (monthlyEMI * months) - loan;
+
+    // Bi-weekly calculation
+    const biweeklyPayment = monthlyEMI / 2;
+    const biweeklyRate = rate / 26;
+    let balance = loan;
+    let periods = 0;
+    let totalPaid = 0;
+
+    while (balance > 0 && periods < 1000) {
+        const interest = balance * biweeklyRate;
+        const principal = biweeklyPayment - interest;
+        balance -= principal;
+        totalPaid += biweeklyPayment;
+        periods++;
+    }
+
+    const biweeklyInterest = totalPaid - loan;
+    const savings = traditionalInterest - biweeklyInterest;
+    const yearsSaved = tenure - (periods / 26);
+
+    // Display results
+    document.getElementById('biweekly_monthly_emi').textContent = 'Rs ' + monthlyEMI.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    document.getElementById('biweekly_payment').textContent = 'Rs ' + biweeklyPayment.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    document.getElementById('biweekly_traditional_interest').textContent = 'Rs ' + traditionalInterest.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    document.getElementById('biweekly_interest').textContent = 'Rs ' + biweeklyInterest.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    document.getElementById('biweekly_time_saved').textContent = yearsSaved.toFixed(1) + ' years';
+    document.getElementById('biweekly_savings').textContent = 'Rs ' + savings.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+    document.getElementById('biweekly_results').classList.remove('hidden');
+
+    // Create chart
+    createBiweeklyChart(monthlyEMI, months, biweeklyPayment, periods);
+}
+
+function createBiweeklyChart(monthlyEMI, months, biweeklyPayment, biweeklyPeriods) {
+    const ctx = document.getElementById('biweekly_chart');
+
+    // Destroy existing chart if any
+    if (window.biweeklyChartInstance) {
+        window.biweeklyChartInstance.destroy();
+    }
+
+    window.biweeklyChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Traditional Monthly', 'Bi-Weekly'],
+            datasets: [{
+                label: 'Total Payments',
+                data: [months, biweeklyPeriods],
+                backgroundColor: ['#e3120b', '#155724']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                title: {
+                    display: true,
+                    text: 'Payment Periods Comparison',
+                    font: {
+                        size: 16,
+                        family: 'Georgia, Times New Roman, serif'
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Number of Payments'
+                    }
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

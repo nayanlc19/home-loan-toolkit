@@ -1,675 +1,111 @@
-import gradio as gr
 import os
 import json
+import secrets
 from datetime import datetime
+from flask import Flask, render_template, request, redirect, session, jsonify, url_for
 from dotenv import load_dotenv
 import razorpay
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from google_auth_oauthlib.flow import Flow
-import secrets
-from flask import Flask, request, redirect, session as flask_session
-from policy_pages import (CONTACT_PAGE, TERMS_PAGE, PRIVACY_PAGE,
-                          REFUND_PAGE, CANCELLATION_PAGE, SHIPPING_PAGE)
 
 # Load environment variables
-try:
-    load_dotenv()
-except:
-    pass
+load_dotenv()
 
-# Admin Configuration
-ADMIN_EMAILS = [
-    "razorpay@razorpay.com",
-    "nayanlc19@gmail.com"
-]
-
-# Razorpay Configuration
-RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID') or os.environ.get('RAZORPAY_KEY_ID')
-RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET') or os.environ.get('RAZORPAY_KEY_SECRET')
-PAYMENT_AMOUNT = int(os.getenv('PAYMENT_AMOUNT') or os.environ.get('PAYMENT_AMOUNT') or '9900')
-PAYMENT_CURRENCY = os.getenv('PAYMENT_CURRENCY') or os.environ.get('PAYMENT_CURRENCY') or 'INR'
-
-# Initialize Razorpay client
-try:
-    if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
-        razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
-    else:
-        razorpay_client = None
-except Exception as e:
-    razorpay_client = None
-    print(f"Error initializing Razorpay: {str(e)}")
+# Initialize Flask app
+app = Flask(__name__)
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', secrets.token_hex(32))
 
 # Google OAuth Configuration
-GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID') or os.environ.get('GOOGLE_CLIENT_ID')
-GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET') or os.environ.get('GOOGLE_CLIENT_SECRET')
-APP_URL = os.getenv('APP_URL') or os.environ.get('APP_URL') or 'http://localhost:7860'
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
+APP_URL = os.environ.get('APP_URL', 'http://localhost:5000')
 REDIRECT_URI = f"{APP_URL}/login/callback"
 
-# Paid users database file
+# Razorpay Configuration
+RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID')
+RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET')
+PAYMENT_AMOUNT = int(os.environ.get('PAYMENT_AMOUNT', 9900))  # Rs 99 in paise
+PAYMENT_CURRENCY = os.environ.get('PAYMENT_CURRENCY', 'INR')
+
+# Admin emails
+ADMIN_EMAILS = ['razorpay@razorpay.com', 'nayanlc19@gmail.com']
+
+# Paid users database
 PAID_USERS_FILE = 'paid_users.json'
-
-# Session management (simple in-memory store for demo)
-user_sessions = {}
-
-def is_admin(email):
-    """Check if the given email is an admin"""
-    if not email:
-        return False
-    return email.lower().strip() in [admin.lower() for admin in ADMIN_EMAILS]
 
 def load_paid_users():
     """Load paid users from JSON file"""
-    try:
-        if os.path.exists(PAID_USERS_FILE):
-            with open(PAID_USERS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        return {"paid_users": [], "payments": []}
-    except Exception as e:
-        print(f"Error loading paid users: {e}")
-        return {"paid_users": [], "payments": []}
+    if os.path.exists(PAID_USERS_FILE):
+        with open(PAID_USERS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
 
-def save_paid_user(email, payment_id, amount):
-    """Save a paid user to the database"""
-    try:
-        data = load_paid_users()
+def save_paid_users(paid_users):
+    """Save paid users to JSON file"""
+    with open(PAID_USERS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(paid_users, f, indent=2)
 
-        email_lower = email.lower().strip()
-        if email_lower not in data["paid_users"]:
-            data["paid_users"].append(email_lower)
-
-        payment_record = {
-            "email": email_lower,
-            "payment_id": payment_id,
-            "amount": amount,
-            "currency": PAYMENT_CURRENCY,
-            "timestamp": datetime.now().isoformat()
-        }
-        data["payments"].append(payment_record)
-
-        with open(PAID_USERS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2)
-
+def is_paid_user(email):
+    """Check if user has paid or is admin"""
+    if email in ADMIN_EMAILS:
         return True
-    except Exception as e:
-        print(f"Error saving payment: {e}")
-        return False
+    paid_users = load_paid_users()
+    return email in paid_users
 
-def check_user_paid(email):
-    """Check if user has paid"""
-    if not email:
-        return False
+def get_user_email():
+    """Get current user's email from session"""
+    return session.get('user_email')
 
-    email_lower = email.lower().strip()
+def get_user_name():
+    """Get current user's name from session"""
+    return session.get('user_name', session.get('user_email', 'Guest'))
 
-    # Admins get free access
-    if is_admin(email_lower):
-        return True
+# Routes
+@app.route('/')
+def index():
+    """Home page with all strategies"""
+    user_email = get_user_email()
+    user_name = get_user_name()
+    is_authenticated = user_email is not None
+    has_paid = is_paid_user(user_email) if user_email else False
 
-    # Check if user in paid list
-    data = load_paid_users()
-    return email_lower in data["paid_users"]
+    return render_template('index.html',
+                         user_email=user_email,
+                         user_name=user_name,
+                         is_authenticated=is_authenticated,
+                         has_paid=has_paid)
 
-def create_razorpay_payment_link(user_email):
-    """Create a Razorpay payment link for the user"""
+@app.route('/login')
+def login():
+    """Redirect to Google OAuth"""
     try:
-        if not razorpay_client:
-            return None, "Razorpay is not configured"
-
-        payment_data = {
-            "amount": PAYMENT_AMOUNT,
-            "currency": PAYMENT_CURRENCY,
-            "description": "Home Loan Toolkit - Full Access Payment",
-            "customer": {
-                "name": "Customer",
-                "email": user_email
+        flow = Flow.from_client_config(
+            {
+                "web": {
+                    "client_id": GOOGLE_CLIENT_ID,
+                    "client_secret": GOOGLE_CLIENT_SECRET,
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "redirect_uris": [REDIRECT_URI]
+                }
             },
-            "notify": {
-                "sms": False,
-                "email": True
-            },
-            "reminder_enable": True,
-            "notes": {
-                "product": "Home Loan Toolkit",
-                "access_type": "Full Access",
-                "user_email": user_email
-            },
-            "callback_url": APP_URL,
-            "callback_method": "get"
-        }
-
-        payment_link = razorpay_client.payment_link.create(payment_data)
-        return payment_link, None
-    except Exception as e:
-        return None, str(e)
-
-def get_google_auth_url():
-    """Generate Google OAuth URL"""
-    if not GOOGLE_CLIENT_ID:
-        return None
-
-    params = {
-        'client_id': GOOGLE_CLIENT_ID,
-        'redirect_uri': REDIRECT_URI,
-        'response_type': 'code',
-        'scope': 'openid email profile',
-        'access_type': 'offline'
-    }
-
-    auth_url = "https://accounts.google.com/o/oauth2/v2/auth?" + "&".join([f"{k}={v}" for k, v in params.items()])
-    return auth_url
-
-# ===== CALCULATOR FUNCTIONS =====
-
-def calculate_biweekly_strategy(loan_amount, interest_rate, tenure_years):
-    """Calculate Bi-Weekly Payment Hack strategy"""
-    months = tenure_years * 12
-    monthly_rate = interest_rate / (12 * 100)
-
-    # Calculate regular EMI
-    emi = loan_amount * monthly_rate * (1 + monthly_rate)**months / ((1 + monthly_rate)**months - 1)
-    total_regular = emi * months
-    interest_regular = total_regular - loan_amount
-
-    # Simulate bi-weekly payment (13 EMIs per year)
-    outstanding = loan_amount
-    total_interest_biweekly = 0
-    months_elapsed = 0
-
-    while outstanding > 0 and months_elapsed < months:
-        annual_payment = emi * 13
-        for month in range(12):
-            if outstanding <= 0:
-                break
-            interest = outstanding * monthly_rate
-            principal = (annual_payment / 12) - interest
-            outstanding -= principal
-            total_interest_biweekly += interest
-            months_elapsed += 1
-
-    savings = interest_regular - total_interest_biweekly
-    time_saved = months - months_elapsed
-
-    return {
-        "emi": emi,
-        "biweekly_payment": emi / 2,
-        "savings": savings,
-        "time_saved_months": time_saved,
-        "time_saved_years": time_saved / 12,
-        "interest_regular": interest_regular,
-        "interest_biweekly": total_interest_biweekly,
-        "savings_percent": (savings / interest_regular) * 100
-    }
-
-def format_currency(amount):
-    """Format amount as Indian currency"""
-    return f"₹{amount:,.0f}"
-
-# ===== GRADIO INTERFACE COMPONENTS =====
-
-def create_home_tab():
-    """Create the home/welcome tab"""
-    with gr.Column():
-        gr.Markdown("""
-        # 🏠 Home Loan Toolkit - Complete Guide
-        ## Everything You Need to Master Your Home Loan Journey
-
-        ---
-
-        ### 🎯 Your Complete Home Loan Command Center!
-
-        - **12 Payment Strategies:** 1 FREE preview + 11 premium strategies (₹99)
-        - **Interactive Calculators:** Real-time calculations for every strategy
-        - **Transparent Pricing:** Try 1 free, unlock all 12 for just ₹99
-
-        ---
-
-        ### 📊 What You Get
-        """)
-
-        with gr.Row():
-            with gr.Column():
-                gr.Markdown("""
-                ### 12
-                **Payment Strategies**
-                """)
-            with gr.Column():
-                gr.Markdown("""
-                ### ₹8-25L
-                **Potential Savings**
-                """)
-            with gr.Column():
-                gr.Markdown("""
-                ### 100%
-                **Secure Payments**
-                """)
-
-        gr.Markdown("---")
-
-        gr.Markdown("""
-        ## 💰 Home Loan Payment Strategies
-
-        ### 🎁 FREE PREVIEW STRATEGY - Try Before You Buy!
-
-        Below is the complete **Bi-Weekly Payment Hack** strategy with full interactive calculator.
-        Experience the power of our strategies for FREE. Unlock all 11 remaining strategies for just ₹99!
-
-        ---
-
-        ### Why Choose Our Strategies?
-
-        #### 🏆 Proven Results
-        - Save ₹8-25 Lakhs in interest
-        - Finish loan 3-10 years early
-        - Based on real Indian scenarios
-        - Tested & verified methods
-
-        #### 💳 Interactive Tools
-        - Live calculators for each strategy
-        - Compare all 12 strategies side-by-side
-        - Personalized recommendations
-        - Real-time calculations
-
-        #### 📊 Complete Guide
-        - Step-by-step implementation
-        - Risk categorization
-        - Requirements checklist
-        - Best practices & tips
-
-        ---
-
-        ### 💯 100% Satisfaction Guaranteed
-        One-time payment of ₹99 gives you lifetime access to all strategies, calculators, and future updates!
-        """)
-
-def create_free_strategy_tab():
-    """Create the free strategy (Bi-Weekly) tab"""
-    with gr.Column():
-        gr.Markdown("""
-        # 🆓 Strategy #1: Bi-Weekly Payment Hack (FREE)
-
-        ### How It Works
-        Pay **half your EMI every 2 weeks** instead of full EMI monthly.
-
-        **The Magic:**
-        - 12 months = 12 monthly EMIs
-        - 52 weeks ÷ 2 = 26 bi-weekly payments = **13 full EMIs per year**
-        - You pay 1 extra EMI annually without realizing it!
-
-        **Why It Works:**
-        - Psychologically easier (smaller, frequent payments)
-        - Reduces principal faster
-        - Interest calculated on lower balance
-
-        ---
-
-        ## 🧮 Interactive Calculator
-        """)
-
-        with gr.Row():
-            with gr.Column():
-                loan_input = gr.Number(label="Loan Amount (₹)", value=5000000, minimum=500000, maximum=100000000)
-                rate_input = gr.Number(label="Interest Rate (%)", value=8.5, minimum=5.0, maximum=15.0)
-                tenure_input = gr.Slider(label="Tenure (Years)", minimum=5, maximum=30, value=20, step=1)
-                calculate_btn = gr.Button("📊 Calculate Savings", variant="primary")
-
-            with gr.Column():
-                results_output = gr.Markdown("")
-
-        def calculate_and_display(loan, rate, tenure):
-            result = calculate_biweekly_strategy(loan, rate, tenure)
-
-            output = f"""
-### Results
-
-**Regular Monthly EMI:** {format_currency(result['emi'])}
-
-**Bi-Weekly Payment:** {format_currency(result['biweekly_payment'])} *(Pay this every 2 weeks)*
-
-**Interest Saved:** {format_currency(result['savings'])} *({result['savings_percent']:.1f}% savings)*
-
-**Time Saved:** {result['time_saved_years']:.1f} years *({result['time_saved_months']:.0f} months)*
-
----
-
-### Your Detailed Results:
-
-- **Regular EMI:** {format_currency(result['emi'])} × {int(tenure * 12)} months = {format_currency(result['interest_regular'])} interest
-- **Bi-weekly:** Pay {format_currency(result['biweekly_payment'])} every 2 weeks
-- **💰 Save {format_currency(result['savings'])} in interest + Close loan {result['time_saved_years']:.1f} years early!**
-
----
-
-### Implementation (India-specific):
-
-- Most banks don't support bi-weekly auto-debit
-- **Workaround:** Manually prepay {format_currency(result['emi'])} once a year (mimics 13th EMI)
-- Or set up automated prepayment every 6 months ({format_currency(result['biweekly_payment'])} × 2)
-            """
-            return output
-
-        calculate_btn.click(
-            fn=calculate_and_display,
-            inputs=[loan_input, rate_input, tenure_input],
-            outputs=results_output
+            scopes=['openid', 'email', 'profile'],
+            redirect_uri=REDIRECT_URI
         )
 
-        gr.Markdown("""
-        ---
-
-        ### 🔒 Want More Strategies?
-
-        **Unlock all 11 premium strategies for just ₹99!**
-
-        Go to the **Checkout** tab to get full access to all strategies and calculators.
-        """)
-
-def create_premium_strategies_tab(user_email):
-    """Create the premium strategies tab"""
-    has_access = check_user_paid(user_email)
-
-    with gr.Column():
-        if not has_access:
-            gr.Markdown("""
-            # 🔒 Premium Strategies (Payment Required)
-
-            ### Get Full Access for ₹99
-
-            Sign in with Google and complete payment to unlock all 11 premium strategies!
-
-            ---
-
-            ### What's Locked:
-
-            #### 🟢 Low Risk Strategies (3 strategies)
-
-            1. **Step-Up EMI Strategy** - Save: ₹18-25L, Time saved: 7 years
-            2. **Tax Refund Amplification** - Save: ₹5-8L extra
-            3. **Rental Escalation Prepayment** - Save: Varies by rent growth
-
-            #### 🟡 Medium Risk Strategies (4 strategies)
-
-            4. **SIP Offset Strategy** ⭐ - Save: ₹15-30L surplus
-            5. **Rental Arbitrage** - Save: ₹10-20L, Time saved: 5 years
-            6. **Credit Card Float** - Save: ₹2.6L + cashback
-            7. **Reverse FD Laddering** - Save: ₹8-15L, Time saved: 4 years
-
-            #### 🔴 Advanced Strategies (4 strategies)
-
-            8. **Loan Chunking** - Save: ₹14L on ₹50L loan
-            9. **Bonus Deferral + Debt Fund** - Save: ₹15-25L
-            10. **Debt Fund SWP** - Save: ₹5-10L + liquidity
-            11. **Salary Account Arbitrage** - Save: ₹2.8L over 20 years
-
-            ---
-
-            ### 💳 Unlock All Strategies
-
-            Go to the **Checkout** tab to complete payment and get instant access!
-            """)
-        else:
-            gr.Markdown(f"""
-            # ✅ Premium Strategies (Full Access)
-
-            Welcome back, **{user_email}**! You have full access to all premium strategies.
-
-            {"👑 **Admin Access Granted**" if is_admin(user_email) else "✅ **Payment Verified**"}
-
-            ---
-
-            ## All 11 Premium Strategies
-
-            *Note: Full calculators and detailed guides for each strategy will be implemented in the next update.*
-
-            ### 🟢 Low Risk Strategies
-
-            1. **Step-Up EMI Strategy** - Save: ₹18-25L, Time saved: 7 years
-            2. **Tax Refund Amplification** - Save: ₹5-8L extra
-            3. **Rental Escalation Prepayment** - Save: Varies by rent growth
-
-            ### 🟡 Medium Risk Strategies
-
-            4. **SIP Offset Strategy** ⭐ - Save: ₹15-30L surplus
-            5. **Rental Arbitrage** - Save: ₹10-20L, Time saved: 5 years
-            6. **Credit Card Float** - Save: ₹2.6L + cashback
-            7. **Reverse FD Laddering** - Save: ₹8-15L, Time saved: 4 years
-
-            ### 🔴 Advanced Strategies
-
-            8. **Loan Chunking** - Save: ₹14L on ₹50L loan
-            9. **Bonus Deferral + Debt Fund** - Save: ₹15-25L
-            10. **Debt Fund SWP** - Save: ₹5-10L + liquidity
-            11. **Salary Account Arbitrage** - Save: ₹2.8L over 20 years
-
-            ---
-
-            *Interactive calculators for all premium strategies coming soon!*
-            """)
-
-def create_checkout_tab(user_email):
-    """Create the checkout/payment tab"""
-    with gr.Column():
-        if not user_email:
-            gr.Markdown("""
-            # 💳 Checkout
-
-            ### ⚠️ Please Sign In First
-
-            You need to sign in with Google before making a payment.
-
-            Click the **"Sign in with Google"** button at the top of the page.
-            """)
-        elif check_user_paid(user_email):
-            gr.Markdown(f"""
-            # ✅ Payment Already Completed
-
-            **{user_email}** - You already have full access!
-
-            Go to the **Premium Strategies** tab to access all content.
-            """)
-        else:
-            gr.Markdown("""
-            # 💳 Checkout - Get Full Access
-
-            ### 🎁 Special Offer - Limited Time!
-            Get lifetime access to all 12 home loan payment strategies for just **₹99** (One-time payment)
-
-            ---
-
-            ### 📦 What's Included
-
-            - ✅ All 12 payment strategies
-            - ✅ Interactive calculators
-            - ✅ Lifetime access
-            - ✅ Future updates FREE
-
-            ---
-
-            ### 💰 Order Summary
-
-            **Home Loan Toolkit - Full Access**
-
-            - 12 Payment Strategies: Included
-            - Interactive Calculators: Included
-            - Lifetime Access: Included
-            - Future Updates: FREE
-
-            **Total Amount: ₹99**
-
-            ---
-            """)
-
-            payment_btn = gr.Button("💳 Proceed to Secure Payment (Razorpay)", variant="primary", size="lg")
-            payment_output = gr.Markdown("")
-
-            def create_payment(email):
-                payment_link, error = create_razorpay_payment_link(email)
-
-                if payment_link:
-                    payment_url = payment_link.get('short_url', '')
-                    return f"""
-### ✅ Payment Link Created Successfully!
-
-**Payment Details:**
-- Amount: ₹{PAYMENT_AMOUNT / 100:.2f}
-- Email: {email}
-- Payment Link ID: {payment_link.get('id', 'N/A')}
-
-### 🔗 Click the link below to complete payment:
-
-[**💳 Pay ₹99 Now (Secure Razorpay)**]({payment_url})
-
-**Direct Link:** {payment_url}
-
----
-
-**After Payment:**
-1. Complete the payment on Razorpay's secure page
-2. You'll be redirected back to this website
-3. Refresh this page and access all strategies
-
-**Note:** Payment may take a few seconds to verify. If you don't get immediate access, please refresh the page or contact support.
-                    """
-                else:
-                    return f"❌ **Error creating payment link:** {error}\n\nPlease contact dmcpexam2020@gmail.com for assistance."
-
-            payment_btn.click(
-                fn=lambda: create_payment(user_email),
-                inputs=None,
-                outputs=payment_output
-            )
-
-            gr.Markdown("""
-            ---
-
-            ### 🔒 Security & Trust
-
-            - ✅ **Secure Payments:** PCI DSS Compliant, 256-bit SSL Encryption
-            - ✅ **Instant Access:** Immediate delivery after payment
-            - ✅ **Support:** Email: dmcpexam2020@gmail.com | Response within 24-48 hours
-            """)
-
-def create_main_interface():
-    """Create the main Gradio interface"""
-
-    # Economist-style theme with serif fonts
-    economist_theme = gr.themes.Base(
-        primary_hue="red",
-        secondary_hue="gray"
-    ).set(
-        body_background_fill="#ffffff",
-        body_text_color="#1a1a1a",
-        body_text_size="*text_lg",
-        button_primary_background_fill="#e3120b",
-        button_primary_background_fill_hover="#c10f09",
-        button_primary_text_color="#ffffff"
-    )
-
-    with gr.Blocks(title="Home Loan Toolkit", theme=economist_theme, css="""
-        .gradio-container {
-            font-family: Georgia, 'Times New Roman', serif !important;
-            max-width: 1200px !important;
-            margin: auto !important;
-        }
-        h1, h2, h3 {
-            font-family: Georgia, 'Times New Roman', serif !important;
-            font-weight: 600 !important;
-            color: #1a1a1a !important;
-        }
-        .markdown-text {
-            font-family: Georgia, 'Times New Roman', serif !important;
-            font-size: 17px !important;
-            line-height: 1.6 !important;
-            color: #1a1a1a !important;
-        }
-    """) as app:
-        # Session state for user
-        user_email_state = gr.State("")
-
-        # Header with auth buttons
-        with gr.Row():
-            gr.Markdown("# 🏠 Home Loan Toolkit")
-            with gr.Column(scale=1):
-                auth_status = gr.Markdown("**Not signed in**")
-                with gr.Row():
-                    signin_btn = gr.Button("🔐 Sign in with Google", size="sm", variant="primary")
-                    signout_btn = gr.Button("Sign Out", size="sm", visible=False)
-
-        gr.Markdown("---")
-
-        # Main tabs
-        with gr.Tabs():
-            with gr.Tab("🏠 Home"):
-                create_home_tab()
-
-            with gr.Tab("🆓 Free Strategy"):
-                create_free_strategy_tab()
-
-            with gr.Tab("🔒 Premium Strategies"):
-                premium_tab = gr.Column()
-
-            with gr.Tab("💳 Checkout"):
-                checkout_tab = gr.Column()
-
-            with gr.Tab("📞 Contact"):
-                gr.Markdown(CONTACT_PAGE)
-
-            with gr.Tab("📋 Terms & Conditions"):
-                gr.Markdown(TERMS_PAGE)
-
-            with gr.Tab("🔒 Privacy Policy"):
-                gr.Markdown(PRIVACY_PAGE)
-
-            with gr.Tab("↩️ Refund Policy"):
-                gr.Markdown(REFUND_PAGE)
-
-            with gr.Tab("❌ Cancellation Policy"):
-                gr.Markdown(CANCELLATION_PAGE)
-
-            with gr.Tab("📦 Shipping & Delivery"):
-                gr.Markdown(SHIPPING_PAGE)
-
-        # Footer
-        gr.Markdown("""
-        ---
-
-        **💡 Tip:** Combine multiple strategies for maximum impact on your home loan!
-
-        Made with ❤️ for smart home loan management | All Rights Reserved © 2025
-
-        **Contact:** dmcpexam2020@gmail.com | +91 7021761291
-        """)
-
-        # Auth button handlers
-        def handle_signin():
-            auth_url = get_google_auth_url()
-            if auth_url:
-                return f"**Click here to sign in:** [Sign in with Google]({auth_url})"
-            else:
-                return "**Error:** Google OAuth not configured"
-
-        signin_btn.click(fn=handle_signin, outputs=auth_status)
-
-        def handle_signout():
-            return "", "**Not signed in**", gr.Button(visible=True), gr.Button(visible=False)
-
-        signout_btn.click(
-            fn=handle_signout,
-            outputs=[user_email_state, auth_status, signin_btn, signout_btn]
+        authorization_url, state = flow.authorization_url(
+            access_type='offline',
+            include_granted_scopes='true',
+            prompt='consent'
         )
 
-    return app
+        session['state'] = state
+        return redirect(authorization_url)
+    except Exception as e:
+        return f"Error initiating login: {str(e)}", 500
 
-# ===== FLASK + GRADIO WRAPPER =====
-
-# Create Flask app
-flask_app = Flask(__name__)
-flask_app.secret_key = os.environ.get('FLASK_SECRET_KEY', secrets.token_hex(32))
-
-# Store authenticated users (in-memory for now)
-authenticated_users = {}
-
-@flask_app.route('/login/callback')
+@app.route('/login/callback')
 def oauth_callback():
     """Handle Google OAuth callback"""
     try:
@@ -707,18 +143,10 @@ def oauth_callback():
         name = id_info.get('name', email)
 
         if email:
-            # Store user session
-            session_id = secrets.token_hex(16)
-            authenticated_users[session_id] = {
-                'email': email,
-                'name': name,
-                'timestamp': datetime.now().isoformat()
-            }
-
-            # Redirect to main app with session cookie
-            response = redirect('/')
-            response.set_cookie('session_id', session_id, max_age=86400, httponly=True, secure=True, samesite='Lax')
-            return response
+            session['user_email'] = email
+            session['user_name'] = name
+            session['authenticated'] = True
+            return redirect(url_for('index'))
         else:
             return "Error: Could not retrieve email from Google", 400
 
@@ -726,24 +154,514 @@ def oauth_callback():
         print(f"OAuth callback error: {str(e)}")
         return f"Authentication error: {str(e)}", 500
 
-# ===== MAIN ENTRY POINT =====
+@app.route('/logout')
+def logout():
+    """Log out user"""
+    session.clear()
+    return redirect(url_for('index'))
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 7860))
+@app.route('/checkout')
+def checkout():
+    """Create Razorpay payment link"""
+    user_email = get_user_email()
 
+    if not user_email:
+        return jsonify({'error': 'Please sign in first'}), 401
+
+    if is_paid_user(user_email):
+        return jsonify({'error': 'You already have access to all strategies'}), 400
+
+    try:
+        client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+
+        payment_link_data = {
+            "amount": PAYMENT_AMOUNT,
+            "currency": PAYMENT_CURRENCY,
+            "description": "Home Loan Toolkit - All 12 Strategies",
+            "customer": {
+                "email": user_email,
+                "name": get_user_name()
+            },
+            "notify": {
+                "email": True
+            },
+            "reminder_enable": True,
+            "callback_url": f"{APP_URL}/payment/verify",
+            "callback_method": "get"
+        }
+
+        payment_link = client.payment_link.create(payment_link_data)
+        return jsonify({'payment_url': payment_link['short_url']})
+
+    except Exception as e:
+        print(f"Payment link creation error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/payment/verify')
+def verify_payment():
+    """Verify Razorpay payment"""
+    user_email = get_user_email()
+
+    if not user_email:
+        return "Please sign in first", 401
+
+    # Get payment details from query parameters
+    payment_id = request.args.get('razorpay_payment_id')
+    payment_link_id = request.args.get('razorpay_payment_link_id')
+    payment_status = request.args.get('razorpay_payment_link_status')
+
+    if payment_status == 'paid' and payment_id:
+        try:
+            # Verify payment with Razorpay
+            client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+            payment = client.payment.fetch(payment_id)
+
+            if payment['status'] == 'captured':
+                # Add user to paid users
+                paid_users = load_paid_users()
+                paid_users[user_email] = {
+                    'payment_id': payment_id,
+                    'payment_link_id': payment_link_id,
+                    'amount': payment['amount'],
+                    'currency': payment['currency'],
+                    'timestamp': datetime.now().isoformat(),
+                    'name': get_user_name()
+                }
+                save_paid_users(paid_users)
+
+                return redirect(url_for('index') + '?payment=success')
+        except Exception as e:
+            print(f"Payment verification error: {str(e)}")
+            return redirect(url_for('index') + '?payment=error')
+
+    return redirect(url_for('index') + '?payment=failed')
+
+# Policy pages
+@app.route('/contact')
+def contact():
+    return render_template('policy.html',
+                         title='Contact Us',
+                         content=get_contact_content(),
+                         user_email=get_user_email(),
+                         user_name=get_user_name(),
+                         is_authenticated=get_user_email() is not None)
+
+@app.route('/terms')
+def terms():
+    return render_template('policy.html',
+                         title='Terms & Conditions',
+                         content=get_terms_content(),
+                         user_email=get_user_email(),
+                         user_name=get_user_name(),
+                         is_authenticated=get_user_email() is not None)
+
+@app.route('/privacy')
+def privacy():
+    return render_template('policy.html',
+                         title='Privacy Policy',
+                         content=get_privacy_content(),
+                         user_email=get_user_email(),
+                         user_name=get_user_name(),
+                         is_authenticated=get_user_email() is not None)
+
+@app.route('/refund')
+def refund():
+    return render_template('policy.html',
+                         title='Refund Policy',
+                         content=get_refund_content(),
+                         user_email=get_user_email(),
+                         user_name=get_user_name(),
+                         is_authenticated=get_user_email() is not None)
+
+@app.route('/cancellation')
+def cancellation():
+    return render_template('policy.html',
+                         title='Cancellation Policy',
+                         content=get_cancellation_content(),
+                         user_email=get_user_email(),
+                         user_name=get_user_name(),
+                         is_authenticated=get_user_email() is not None)
+
+@app.route('/shipping')
+def shipping():
+    return render_template('policy.html',
+                         title='Shipping & Delivery Policy',
+                         content=get_shipping_content(),
+                         user_email=get_user_email(),
+                         user_name=get_user_name(),
+                         is_authenticated=get_user_email() is not None)
+
+# Policy content functions
+def get_contact_content():
+    return """
+    <h2>Contact Information</h2>
+    <p><strong>Email:</strong> dmcpexam2020@gmail.com</p>
+    <p><strong>Phone:</strong> +91 7021761291</p>
+    <p><strong>Response Time:</strong> Within 24-48 hours</p>
+    <p><strong>Business Hours:</strong> Mon-Fri, 9 AM - 6 PM IST</p>
+
+    <h2>Get in Touch</h2>
+    <p>We're here to help you with your home loan journey. Feel free to reach out!</p>
+
+    <h3>Business Information</h3>
+    <p><strong>Home Loan Toolkit</strong><br>
+    Online Educational Platform<br>
+    Providing Home Loan Strategies & Financial Tools</p>
+
+    <h3>Authentication</h3>
+    <p>Secure login via Google Auth (powered by Render)</p>
+    """
+
+def get_terms_content():
+    return """
+    <p><strong>Last Updated:</strong> October 28, 2025</p>
+
+    <h2>1. Acceptance of Terms</h2>
+    <p>By accessing and using Home Loan Toolkit ("the Service"), you accept and agree to be bound by the terms and conditions of this agreement.</p>
+
+    <h2>2. Description of Service</h2>
+    <p>Home Loan Toolkit provides:</p>
+    <ul>
+        <li>Educational content and calculators for home loan payment strategies</li>
+        <li>Interactive tools to help users make informed financial decisions</li>
+    </ul>
+
+    <h2>3. User Responsibilities</h2>
+    <p>You agree to:</p>
+    <ul>
+        <li>Provide accurate information when using our calculators</li>
+        <li>Use the Service for lawful purposes only</li>
+        <li>Not attempt to gain unauthorized access to any part of the Service</li>
+        <li>Seek professional financial advice before making major financial decisions</li>
+    </ul>
+
+    <h2>4. Disclaimer</h2>
+    <p>The information provided through the Service is for educational purposes only and should not be considered as financial, legal, or tax advice. We recommend consulting with qualified professionals before making any financial decisions.</p>
+
+    <h2>5. No Warranties</h2>
+    <p>The Service is provided "as is" without any warranties, express or implied. We do not guarantee:</p>
+    <ul>
+        <li>The accuracy or completeness of the information</li>
+        <li>That the Service will be uninterrupted or error-free</li>
+        <li>Specific results from using our strategies or tools</li>
+    </ul>
+
+    <h2>6. Limitation of Liability</h2>
+    <p>Home Loan Toolkit shall not be liable for any:</p>
+    <ul>
+        <li>Financial losses resulting from use of our calculators or strategies</li>
+        <li>Decisions made based on information provided through the Service</li>
+        <li>Technical issues or data loss</li>
+    </ul>
+
+    <h2>7. Intellectual Property</h2>
+    <p>All content, including but not limited to text, graphics, logos, and software, is the property of Home Loan Toolkit and protected by copyright laws.</p>
+
+    <h2>8. Changes to Terms</h2>
+    <p>We reserve the right to modify these terms at any time. Continued use of the Service after changes constitutes acceptance of the modified terms.</p>
+
+    <h2>9. Governing Law</h2>
+    <p>These terms shall be governed by the laws of India.</p>
+
+    <h2>10. Contact Information</h2>
+    <p>For questions about these Terms & Conditions, please contact:<br>
+    Email: dmcpexam2020@gmail.com</p>
+
+    <p><strong>By using Home Loan Toolkit, you acknowledge that you have read, understood, and agree to be bound by these Terms & Conditions.</strong></p>
+    """
+
+def get_privacy_content():
+    return """
+    <p><strong>Last Updated:</strong> October 28, 2025</p>
+
+    <h2>1. Introduction</h2>
+    <p>Home Loan Toolkit ("we", "our", or "us") respects your privacy and is committed to protecting your personal data. This privacy policy explains how we collect, use, and safeguard your information.</p>
+
+    <h2>2. Information We Collect</h2>
+    <h3>2.1 Information You Provide</h3>
+    <ul>
+        <li>Contact details (name, email) when you sign in with Google</li>
+        <li>Financial inputs you enter into our calculators (stored locally, not on our servers)</li>
+    </ul>
+
+    <h3>2.2 Automatically Collected Information</h3>
+    <ul>
+        <li>Browser type and version</li>
+        <li>Time zone setting and location</li>
+        <li>Operating system and platform</li>
+        <li>Pages visited and time spent on pages</li>
+    </ul>
+
+    <h2>3. How We Use Your Information</h2>
+    <p>We use your information to:</p>
+    <ul>
+        <li>Provide access to premium strategies after payment verification</li>
+        <li>Respond to your inquiries and provide customer support</li>
+        <li>Improve our Service based on usage patterns</li>
+        <li>Analyze and improve our calculators and tools</li>
+    </ul>
+
+    <h2>4. Data Storage and Security</h2>
+    <ul>
+        <li>Calculator inputs are processed in real-time and not stored on our servers</li>
+        <li>Google OAuth handles authentication securely</li>
+        <li>Payment information is processed by Razorpay (we don't store card details)</li>
+        <li>We implement appropriate technical and organizational measures to protect your data</li>
+    </ul>
+
+    <h2>5. Data Sharing</h2>
+    <p>We do NOT:</p>
+    <ul>
+        <li>Sell your personal data to third parties</li>
+        <li>Share your financial calculation data with anyone</li>
+        <li>Use your data for marketing purposes without explicit consent</li>
+    </ul>
+
+    <p>We MAY share data with:</p>
+    <ul>
+        <li>Service providers who help us operate the Service (under strict confidentiality)</li>
+        <li>Law enforcement if legally required</li>
+    </ul>
+
+    <h2>6. Your Rights</h2>
+    <p>You have the right to:</p>
+    <ul>
+        <li>Access your personal data</li>
+        <li>Request correction of inaccurate data</li>
+        <li>Request deletion of your data</li>
+        <li>Opt-out of communications</li>
+        <li>Withdraw consent at any time</li>
+    </ul>
+
+    <h2>7. Third-Party Services</h2>
+    <p>Our Service uses:</p>
+    <ul>
+        <li><strong>Google OAuth</strong> for authentication</li>
+        <li><strong>Razorpay</strong> for payment processing</li>
+    </ul>
+    <p>These services have their own privacy policies, and we encourage you to review them.</p>
+
+    <h2>8. Changes to Privacy Policy</h2>
+    <p>We may update this policy from time to time. We will notify you of significant changes by posting a notice on our Service.</p>
+
+    <h2>9. Contact Us</h2>
+    <p>For privacy-related questions or to exercise your rights, contact:<br>
+    Email: dmcpexam2020@gmail.com</p>
+
+    <p><strong>By using Home Loan Toolkit, you consent to this Privacy Policy.</strong></p>
+    """
+
+def get_refund_content():
+    return """
+    <p><strong>Last Updated:</strong> October 28, 2025</p>
+
+    <h2>No Refund Policy</h2>
+    <p><strong>IMPORTANT:</strong> All payments made through our platform are <strong>FINAL and NON-REFUNDABLE</strong>.</p>
+
+    <h2>Service Nature</h2>
+    <p>Home Loan Toolkit provides:</p>
+    <ul>
+        <li>Digital educational content (delivered instantly)</li>
+        <li>Interactive calculators and tools (immediate access)</li>
+        <li>Payment strategy guides (instant access)</li>
+    </ul>
+
+    <h2>Why No Refunds?</h2>
+    <p>Due to the <strong>digital and instant nature</strong> of our services:</p>
+    <ul>
+        <li>Content is delivered immediately upon payment</li>
+        <li>Information cannot be "returned" once accessed</li>
+        <li>Calculators and tools are accessed instantly</li>
+        <li>This prevents misuse of our educational content</li>
+    </ul>
+
+    <h2>Payment Processing</h2>
+    <p>All payments are processed through secure Razorpay gateway that is:</p>
+    <ul>
+        <li>Encrypted and PCI-DSS compliant</li>
+        <li>Supports multiple payment methods</li>
+        <li>Fully secure and trusted</li>
+    </ul>
+
+    <h2>Before You Purchase</h2>
+    <p>Please ensure you:</p>
+    <ul>
+        <li>Review service descriptions carefully</li>
+        <li>Understand what you're purchasing</li>
+        <li>Try the FREE strategy first before buying premium access</li>
+        <li>Contact us with any questions BEFORE making payment</li>
+        <li>Verify your payment details</li>
+    </ul>
+
+    <h2>Exceptions</h2>
+    <p>Refunds may be considered ONLY in the following cases:</p>
+    <ul>
+        <li>Duplicate payment due to technical error</li>
+        <li>Payment debited but service not delivered (verified by our team)</li>
+        <li>Unauthorized transaction (with police complaint)</li>
+    </ul>
+
+    <h2>Contact Us</h2>
+    <p>For questions about payments or this policy, contact:<br>
+    Email: dmcpexam2020@gmail.com<br>
+    Phone: +91 7021761291</p>
+
+    <p><strong>By making a payment, you acknowledge and accept this No Refund Policy.</strong></p>
+    """
+
+def get_cancellation_content():
+    return """
+    <p><strong>Last Updated:</strong> October 28, 2025</p>
+
+    <h2>No Cancellation Policy</h2>
+    <p><strong>IMPORTANT:</strong> Once a payment is made and content/service is delivered, <strong>NO CANCELLATIONS are allowed</strong>.</p>
+
+    <h2>Service Nature</h2>
+    <p>Home Loan Toolkit provides <strong>instant-access digital services</strong>:</p>
+    <ul>
+        <li>Educational content delivered immediately</li>
+        <li>Calculator tools activated instantly upon payment</li>
+        <li>Guides available for immediate access</li>
+    </ul>
+
+    <h2>Why No Cancellations?</h2>
+    <p>Due to the <strong>instant delivery nature</strong> of digital services:</p>
+    <ul>
+        <li>Content is accessed immediately after payment</li>
+        <li>Information and tools cannot be "undelivered"</li>
+        <li>All services are non-reversible once accessed</li>
+        <li>Immediate value is provided at the time of payment</li>
+    </ul>
+
+    <h2>Payment Processing</h2>
+    <p>All payments through our secure Razorpay gateway are:</p>
+    <ul>
+        <li>Processed instantly</li>
+        <li>Final and binding</li>
+        <li>Non-cancellable once transaction is complete</li>
+    </ul>
+
+    <h2>Before Making Payment</h2>
+    <p>Please ensure to:</p>
+    <ul>
+        <li>Carefully review what you're purchasing</li>
+        <li>Try the FREE Bi-Weekly strategy first</li>
+        <li>Verify the service description</li>
+        <li>Check pricing and payment details</li>
+        <li>Contact us with questions BEFORE paying</li>
+        <li>Confirm you want to proceed with the purchase</li>
+    </ul>
+
+    <h2>Account Management</h2>
+    <p>If you have an account with us:</p>
+    <ul>
+        <li>You can stop using the service anytime</li>
+        <li>Account data can be deleted upon request</li>
+        <li>Email dmcpexam2020@gmail.com for data deletion</li>
+        <li>We process deletion requests within 30 days</li>
+    </ul>
+
+    <h2>Authentication</h2>
+    <ul>
+        <li>Login is managed via <strong>Google Auth</strong></li>
+        <li>Secure and encrypted authentication</li>
+        <li>No password storage on our platform</li>
+    </ul>
+
+    <h2>Contact Us</h2>
+    <p>For questions about this policy, contact:<br>
+    Email: dmcpexam2020@gmail.com<br>
+    Phone: +91 7021761291</p>
+
+    <p><strong>By making a payment, you acknowledge that NO CANCELLATIONS are permitted once service is delivered.</strong></p>
+    """
+
+def get_shipping_content():
+    return """
+    <p><strong>Last Updated:</strong> October 28, 2025</p>
+
+    <h2>Digital Product - Instant Delivery</h2>
+    <p><strong>IMPORTANT:</strong> Home Loan Toolkit is a <strong>100% DIGITAL PRODUCT</strong>. There is NO physical shipping involved.</p>
+
+    <h2>How You Get Access</h2>
+    <h3>Instant Access After Payment</h3>
+    <p>Once your payment is successfully processed:</p>
+    <ol>
+        <li><strong>Immediate Activation:</strong> Your account is activated instantly</li>
+        <li><strong>No Waiting:</strong> Access all 12 strategies immediately</li>
+        <li><strong>Instant Delivery:</strong> All calculators, tools, and content available right away</li>
+        <li><strong>Email Confirmation:</strong> You'll receive a payment confirmation from Razorpay</li>
+    </ol>
+
+    <h3>Access Details</h3>
+    <ul>
+        <li><strong>Delivery Method:</strong> Online access through website</li>
+        <li><strong>Delivery Time:</strong> Instant (within seconds of payment confirmation)</li>
+        <li><strong>Access Duration:</strong> Lifetime access</li>
+        <li><strong>Downloads:</strong> No downloads required - all tools are web-based</li>
+    </ul>
+
+    <h2>What You Get Access To</h2>
+    <p>After successful payment, you will immediately get access to:</p>
+    <ul>
+        <li>All 12 Home Loan Payment Strategies</li>
+        <li>Interactive Calculators for each strategy</li>
+        <li>Comparison Tools</li>
+        <li>Implementation Guides</li>
+        <li>All future updates (FREE)</li>
+    </ul>
+
+    <h2>Payment Processing</h2>
+    <ul>
+        <li>Payment is processed through secure Razorpay gateway</li>
+        <li>Once payment is successful, access is granted automatically</li>
+        <li>No manual activation required</li>
+        <li>No shipping address needed (digital product)</li>
+    </ul>
+
+    <h2>Accessing Your Purchase</h2>
+    <p><strong>Steps to Access:</strong></p>
+    <ol>
+        <li>Sign in with your Google account</li>
+        <li>Complete payment of Rs 99 through checkout</li>
+        <li>Razorpay processes your payment</li>
+        <li>You receive instant access to all strategies</li>
+        <li>Start using tools immediately</li>
+    </ol>
+
+    <h2>No Physical Delivery</h2>
+    <ul>
+        <li>This is a digital-only service</li>
+        <li>No courier/postal delivery</li>
+        <li>No shipping charges</li>
+        <li>No shipping address required</li>
+        <li>Instant online access only</li>
+    </ul>
+
+    <h2>Support</h2>
+    <p>If you face any issues accessing your purchase after payment:</p>
+    <ul>
+        <li><strong>Email:</strong> dmcpexam2020@gmail.com</li>
+        <li><strong>Phone:</strong> +91 7021761291</li>
+        <li><strong>Response Time:</strong> Within 24-48 hours</li>
+        <li><strong>We'll resolve:</strong> Any access issues immediately</li>
+    </ul>
+
+    <h2>Summary</h2>
+    <p><strong>Digital Product = Instant Access</strong></p>
+    <ul>
+        <li>Pay Rs 99 → Get instant access → Start using immediately</li>
+        <li>No waiting, no shipping, no delays</li>
+        <li>100% online, 100% instant</li>
+    </ul>
+
+    <p><strong>By making a purchase, you understand this is a digital product with instant online access and no physical shipping.</strong></p>
+    """
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
     print(f"Starting Home Loan Toolkit on port {port}")
+    print(f"Google OAuth: {'Configured' if GOOGLE_CLIENT_ID else 'NOT configured'}")
+    print(f"Razorpay: {'Configured' if RAZORPAY_KEY_ID else 'NOT configured'}")
     print(f"Admin emails: {', '.join(ADMIN_EMAILS)}")
-    print(f"Google OAuth configured: {bool(GOOGLE_CLIENT_ID)}")
-    print(f"Razorpay configured: {bool(razorpay_client)}")
-
-    # Create Gradio interface
-    gradio_app = create_main_interface()
-
-    # Mount Gradio on Flask
-    gradio_app.launch(
-        server_name="0.0.0.0",
-        server_port=port,
-        share=False,
-        app=flask_app,
-        app_kwargs={"debug": False}
-    )
+    app.run(host='0.0.0.0', port=port, debug=False)
