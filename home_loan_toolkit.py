@@ -448,6 +448,50 @@ def generate_amortization_schedule(principal, annual_rate, months, annual_prepay
 
     return schedule
 
+def format_inr(amount):
+    """Format amount in Indian Rupee format"""
+    return f"₹{amount:,.0f}"
+
+def calculate_loan_cost_with_tax(loan_amount, annual_rate, tenure_years, tax_slab, old_regime, property_type, annual_prepayment=0):
+    """
+    Calculate complete loan cost with tax benefits
+    Returns dict with total_interest, total_tax_benefit, net_cost
+    """
+    months = tenure_years * 12
+    schedule = generate_amortization_schedule(loan_amount, annual_rate, months, annual_prepayment)
+
+    total_interest = sum([s['interest'] for s in schedule])
+    total_principal = sum([s['principal'] for s in schedule])
+
+    # Calculate tax benefits year-wise
+    total_80c_benefit = 0
+    total_24b_benefit = 0
+
+    for year in range(1, tenure_years + 1):
+        year_principal = sum([s['principal'] for s in schedule if s['year'] == year])
+        year_interest = sum([s['interest'] for s in schedule if s['year'] == year])
+
+        # 80C benefit (only old regime)
+        if old_regime:
+            total_80c_benefit += min(year_principal, SECTION_80C_LIMIT) * (tax_slab / 100)
+
+        # 24b benefit (both regimes)
+        if property_type == "Self-Occupied":
+            total_24b_benefit += min(year_interest, SECTION_24B_LIMIT_SELF) * (tax_slab / 100)
+        else:
+            total_24b_benefit += year_interest * (tax_slab / 100)
+
+    total_tax_benefit = total_80c_benefit + total_24b_benefit
+    net_cost = loan_amount + total_interest - total_tax_benefit
+
+    return {
+        'total_interest': total_interest,
+        'total_80c_benefit': total_80c_benefit,
+        'total_24b_benefit': total_24b_benefit,
+        'total_tax_benefit': total_tax_benefit,
+        'net_cost': net_cost
+    }
+
 # ============================================================================
 # INITIALIZE SESSION STATE
 # ============================================================================
