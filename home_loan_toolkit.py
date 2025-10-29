@@ -839,11 +839,18 @@ if user_email:
     else:
         st.sidebar.info(f"👤 Free: {user_email}")
 
-    if st.sidebar.button("🚪 Sign Out"):
+    if st.sidebar.button("🚪 Sign Out", key="sidebar_signout"):
         st.session_state.clear()
         st.rerun()
 else:
     st.sidebar.warning("Not signed in")
+
+    # Add Google Sign In button in sidebar
+    if GOOGLE_CLIENT_ID:
+        auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?client_id={GOOGLE_CLIENT_ID}&redirect_uri={APP_URL}&response_type=code&scope=openid%20email%20profile&access_type=offline"
+        st.sidebar.markdown(f'<a href="{auth_url}" target="_self"><button style="background:#4285f4;color:white;border:none;padding:10px 20px;border-radius:4px;cursor:pointer;width:100%;font-size:14px;">🔐 Sign in with Google</button></a>', unsafe_allow_html=True)
+    else:
+        st.sidebar.info("Google Sign In not configured")
 
 st.sidebar.markdown("---")
 
