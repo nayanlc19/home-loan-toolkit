@@ -115,6 +115,134 @@ BANK_DATA = {
     }
 }
 
+# Bank Reviews and Service Quality Data (Based on customer reviews as of Jan 2025)
+BANK_REVIEWS = {
+    "SBI": {
+        "rating": 4.0,
+        "total_reviews": 1429,
+        "service_quality": "Mixed",
+        "pros": [
+            "Lowest interest rates among major banks",
+            "No processing fees (0% vs 0.35-1% at others)",
+            "Many offers and discounts available",
+            "0.05% off for women borrowers"
+        ],
+        "cons": [
+            "Customer service issues - difficult to reach on phone",
+            "Slow processing (3-4 weeks vs 2-3 weeks typical)",
+            "Branch experience varies significantly",
+            "Cumbersome documentation process"
+        ],
+        "why_low_rate": "As a PSU bank, SBI offers lower rates but compensates with slower processing and limited customer service. Government backing allows competitive pricing.",
+        "best_for": "Price-conscious borrowers who can tolerate slower processing",
+        "avoid_if": "You need quick approval or premium customer service"
+    },
+    "HDFC": {
+        "rating": 4.0,
+        "total_reviews": 6443,
+        "service_quality": "Mixed",
+        "pros": [
+            "Quick processing (10-20 days approval possible)",
+            "Attractive interest rates",
+            "Good for salaried women (0.05% discount)",
+            "Strong brand reputation"
+        ],
+        "cons": [
+            "Pathetic customer service at branches (per reviews)",
+            "Complaints often closed without resolution",
+            "Initial processing can be worst in service",
+            "Disbursement delays reported causing builder penalties"
+        ],
+        "why_mid_rate": "HDFC balances competitive rates with faster processing. Private bank efficiency but service quality varies by branch. Premium for faster approval.",
+        "best_for": "Borrowers needing fast approval who can navigate service issues",
+        "avoid_if": "You expect consistent premium customer service"
+    },
+    "ICICI": {
+        "rating": 1.6,
+        "total_reviews": 131,
+        "service_quality": "Poor",
+        "pros": [
+            "Lower processing fees (0.25% in some cases)",
+            "Some customers got approval within 28 days",
+            "Digital infrastructure",
+            "Helpful customer reps (when reached)"
+        ],
+        "cons": [
+            "Predominantly negative reviews (1.6/5 rating)",
+            "NRI home loans described as 'nightmare'",
+            "Zero clarity on documentation",
+            "Unprofessional service and constant delays",
+            "No accountability or transparency",
+            "AI assistant makes reaching humans difficult"
+        ],
+        "why_high_rate": "Higher rate of 8.75% reflects poor service quality and operational inefficiencies. Bank compensates for customer service issues with higher pricing. Premium charged but service doesn't match.",
+        "best_for": "Existing ICICI customers with relationship manager",
+        "avoid_if": "You're an NRI, need clarity, or expect professional service"
+    },
+    "Axis": {
+        "rating": 3.5,
+        "total_reviews": 450,
+        "service_quality": "Average",
+        "pros": [
+            "Competitive rates for salaried professionals",
+            "0.05% off for defense personnel",
+            "Decent digital banking interface",
+            "Growing branch network"
+        ],
+        "cons": [
+            "Higher processing fee (1% vs 0.35-0.5%)",
+            "Service quality varies by branch",
+            "Not as established as HDFC/ICICI in home loans"
+        ],
+        "why_mid_rate": "Axis prices competitively to gain market share. Higher processing fees compensate for lower interest rate. Good balance for employed professionals.",
+        "best_for": "Defense personnel, salaried professionals in metro cities",
+        "avoid_if": "You want established home loan processes"
+    },
+    "Kotak": {
+        "rating": 3.8,
+        "total_reviews": 320,
+        "service_quality": "Good",
+        "pros": [
+            "Competitive interest rates",
+            "Better customer service than ICICI/Axis",
+            "Faster processing for existing customers",
+            "Good digital experience"
+        ],
+        "cons": [
+            "Limited branch network compared to HDFC/ICICI",
+            "Fewer special offers/discounts",
+            "New entrant in home loan market"
+        ],
+        "why_mid_rate": "Kotak offers decent rates to build market share. Better service than competitors at same price point. Focus on quality over volume.",
+        "best_for": "Existing Kotak customers, urban borrowers",
+        "avoid_if": "You need extensive branch network"
+    },
+    "PNB": {
+        "rating": 3.9,
+        "total_reviews": 890,
+        "service_quality": "Average",
+        "pros": [
+            "Lowest rate (8.40%) among all banks",
+            "Low processing fee (0.35%)",
+            "PSU bank stability",
+            "0.05% off for women borrowers"
+        ],
+        "cons": [
+            "PSU bank bureaucracy and delays",
+            "Limited digital infrastructure",
+            "Branch service quality inconsistent",
+            "Documentation can be extensive"
+        ],
+        "why_lowest_rate": "As PSU bank, PNB offers rock-bottom rates to compete with SBI. Government backing allows aggressive pricing. Trade-off is slower service and bureaucracy.",
+        "best_for": "Price-sensitive borrowers with time flexibility",
+        "avoid_if": "You need modern digital experience or fast processing"
+    }
+}
+
+# Rate Update Information
+RATE_LAST_UPDATED = "2025-01-29"
+RATE_UPDATE_SOURCE = "Manual update from bank websites"
+
 # Initialize Razorpay client
 try:
     if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
@@ -471,7 +599,8 @@ def calculate_loan_cost_with_tax(loan_amount, annual_rate, tenure_years, tax_sla
     total_principal = sum([s['principal'] for s in schedule])
 
     # Calculate actual tenure (in case of prepayments, loan pays off early)
-    actual_tenure_years = len(schedule) / 12
+    actual_tenure_months = len(schedule)
+    actual_tenure_years = actual_tenure_months / 12
 
     # Calculate tax benefits year-wise
     total_80c_benefit = 0
@@ -500,6 +629,7 @@ def calculate_loan_cost_with_tax(loan_amount, annual_rate, tenure_years, tax_sla
         'total_24b_benefit': total_24b_benefit,
         'total_tax_benefit': total_tax_benefit,
         'net_cost': net_cost,
+        'actual_tenure_months': actual_tenure_months,
         'actual_tenure_years': actual_tenure_years
     }
 
@@ -681,7 +811,7 @@ def calculate_overdraft_loan_cost(loan_amount, annual_rate, tenure_months, surpl
 # ============================================================================
 
 if 'selected_page' not in st.session_state:
-    st.session_state.selected_page = 'home'
+    st.session_state.selected_page = 'start_here'
 
 if 'user_email' not in st.session_state:
     st.session_state.user_email = ''
@@ -719,6 +849,7 @@ st.sidebar.markdown("---")
 
 # Navigation menu
 page_options = {
+    'start_here': '🚀 Start Here',
     'home': '🏠 Home',
     'strategies': '💰 12 Strategies',
     'bank_comparison': '🏦 Bank Comparison',
@@ -3271,10 +3402,171 @@ def show_comprehensive_tips():
 # PAGE ROUTING & DISPLAY LOGIC
 # ============================================================================
 
-selected_page = st.session_state.get('selected_page', 'home')
+selected_page = st.session_state.get('selected_page', 'start_here')
+
+# ==========================================================================================
+# START HERE PAGE - Guided Journey for New Users
+# ==========================================================================================
+if selected_page == 'start_here':
+    st.markdown("# 🚀 Welcome! Let's Find Your Best Strategy")
+
+    st.markdown("""
+    <div class="heart-box">
+    👋 <strong>New to home loans? You're in the right place!</strong><br><br>
+
+    We'll help you find the best way to save lakhs on your home loan in just 3 simple steps.
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("## Step 1: Tell Us About Your Loan")
+
+    col_q1, col_q2 = st.columns(2)
+
+    with col_q1:
+        quick_loan_amount = st.selectbox(
+            "What's your loan amount?",
+            options=["₹10-25 Lakhs", "₹25-50 Lakhs", "₹50 Lakhs - ₹1 Crore", "₹1 Crore+"],
+            help="Approximate loan amount you're planning"
+        )
+
+        quick_monthly_income = st.selectbox(
+            "What's your monthly income?",
+            options=["₹50K-₹1L", "₹1L-₹2L", "₹2L-₹5L", "₹5L+"],
+            help="Your household monthly income"
+        )
+
+    with col_q2:
+        quick_surplus = st.selectbox(
+            "How much surplus can you save monthly?",
+            options=["₹5K-₹10K", "₹10K-₹20K", "₹20K-₹50K", "₹50K+", "Variable/Uncertain"],
+            help="Money left after all expenses + EMI"
+        )
+
+        quick_goal = st.selectbox(
+            "What's your main goal?",
+            options=[
+                "Reduce total interest paid",
+                "Pay off loan faster",
+                "Keep maximum flexibility",
+                "Minimize monthly payment",
+                "Not sure yet"
+            ]
+        )
+
+    st.markdown("---")
+    st.markdown("## Step 2: Your Personalized Recommendations")
+
+    # Simple logic to recommend strategies
+    recommendations = []
+
+    if "Variable" in quick_surplus or "Uncertain" in quick_surplus:
+        recommendations.append({
+            "strategy": "💳 Strategy #1: Bi-Weekly Payment Hack",
+            "why": "Perfect for variable income - pay EMI in 2 smaller chunks",
+            "savings": "₹3-5 Lakhs",
+            "page": "strategies"
+        })
+    else:
+        recommendations.append({
+            "strategy": "💰 Strategy #2: Tax Refund Amplification",
+            "why": "Use your tax refunds to compound savings",
+            "savings": "₹5-8 Lakhs",
+            "page": "strategies"
+        })
+
+    if "reduce total interest" in quick_goal.lower() or "pay off faster" in quick_goal.lower():
+        recommendations.append({
+            "strategy": "🔄 EMI vs Overdraft Comparison",
+            "why": "Save interest by parking surplus in overdraft account",
+            "savings": "₹8-15 Lakhs",
+            "page": "overdraft_comparison"
+        })
+
+    if "flexibility" in quick_goal.lower():
+        recommendations.append({
+            "strategy": "💡 Strategy #10: Flexi-Loan Strategy",
+            "why": "Maximum flexibility to withdraw when needed",
+            "savings": "₹3-7 Lakhs",
+            "page": "strategies"
+        })
+
+    # Always recommend these
+    recommendations.append({
+        "strategy": "🏦 Bank Comparison Tool",
+        "why": "Find the cheapest bank for your profile",
+        "savings": "₹2-6 Lakhs",
+        "page": "bank_comparison"
+    })
+
+    recommendations.append({
+        "strategy": "👤 Your Custom Rate Calculator",
+        "why": "See what interest rate YOU actually qualify for",
+        "savings": "Know your real rate",
+        "page": "personalized_rates"
+    })
+
+    # Display recommendations
+    st.markdown("### ✨ Based on your profile, we recommend:")
+
+    for i, rec in enumerate(recommendations[:3], 1):
+        with st.expander(f"**{i}. {rec['strategy']}** - Expected Savings: {rec['savings']}", expanded=(i==1)):
+            st.markdown(f"**Why this works for you:** {rec['why']}")
+            # Extract button text safely
+            button_text = rec['strategy'].split(':')[1].strip() if ':' in rec['strategy'] else rec['strategy'].split(']')[1].strip() if ']' in rec['strategy'] else "Try This"
+            if st.button(f"Try {button_text}", key=f"btn_{i}", use_container_width=True):
+                st.session_state.selected_page = rec['page']
+                st.rerun()
+
+    st.markdown("---")
+    st.markdown("## Step 3: Essential Reading")
+
+    col_ess1, col_ess2 = st.columns(2)
+
+    with col_ess1:
+        st.markdown("""
+        <div class="info-banner">
+        <strong>⚠️ Hidden Problems You Must Know</strong><br>
+        Banks don't tell you these issues. Learn before you sign!
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("🚨 See Hidden Problems", key="start_hidden_problems", use_container_width=True):
+            st.session_state.selected_page = 'hidden_issues'
+            st.rerun()
+
+    with col_ess2:
+        st.markdown("""
+        <div class="success-box">
+        <strong>💰 Explore All 12 Strategies</strong><br>
+        See complete list of proven strategies to save lakhs
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("📚 View All Strategies", key="start_all_strategies", use_container_width=True):
+            st.session_state.selected_page = 'strategies'
+            st.rerun()
+
+    st.markdown("---")
+    st.markdown("### 🎯 Quick Links")
+
+    col_link1, col_link2, col_link3 = st.columns(3)
+
+    with col_link1:
+        if st.button("💡 Tips & Tricks", key="quick_link_tips", use_container_width=True):
+            st.session_state.selected_page = 'tips'
+            st.rerun()
+
+    with col_link2:
+        if st.button("🏠 About This Tool", key="quick_link_home", use_container_width=True):
+            st.session_state.selected_page = 'home'
+            st.rerun()
+
+    with col_link3:
+        if st.button("📧 Contact Us", key="quick_link_contact", use_container_width=True):
+            st.info("📧 dmcpexam2020@gmail.com | 📱 +91 7021761291")
 
 # HOME PAGE
-if selected_page == 'home':
+elif selected_page == 'home':
     st.markdown("## 🏠 Home Loan Toolkit: From People's Real Experiences")
 
     st.markdown("""
@@ -3401,112 +3693,79 @@ elif selected_page == 'strategies':
     with st.expander("Strategy #1: Bi-Weekly Payment Hack (Click to Expand)", expanded=True):
         show_strategy_1_biweekly()
 
-    # Show premium strategies
-    if not is_paid and not is_admin_user:
-        st.markdown("### 🔒 Premium Strategies - Unlock All for ₹99")
+    # Show all premium strategies (PAYWALL TEMPORARILY DISABLED FOR TESTING)
+    st.markdown("### ✅ All 12 Strategies (Full Access for Testing)")
 
-        st.markdown("""
-        <div class="premium-box">
-        <strong>💎 11 More Powerful Strategies Waiting for You:</strong><br><br>
+    # Strategy 2: Tax Refund Amplification
+    st.markdown("---")
+    with st.expander("Strategy #2: Tax Refund Amplification", expanded=False):
+        show_strategy_2_tax_refund()
 
-        <strong>Investment & Planning:</strong><br>
-        • #2: Tax Refund Amplification - Compound your tax savings<br>
-        • #3: Lump Sum Accelerator - Optimize windfalls & bonuses<br>
-        • #4: SIP vs Prepayment - Complete LTCG/STCG analysis<br><br>
+    # Strategy 3: Lump Sum Accelerator
+    st.markdown("---")
+    with st.expander("Strategy #3: Lump Sum Accelerator", expanded=False):
+        show_strategy_3_lumpsum()
 
-        <strong>Loan Structure:</strong><br>
-        • #5: Overdraft Loan Strategy - Daily interest savings<br>
-        • #6: Step-Up EMI - Align with salary growth<br>
-        • #7: Part-Prepayment - Reduce tenure vs EMI<br>
-        • #8: Balance Transfer - Switch banks profitably<br><br>
+    # Strategy 4: SIP vs Prepayment
+    st.markdown("---")
+    with st.expander("Strategy #4: SIP vs Prepayment Optimizer", expanded=False):
+        show_strategy_4_sip_vs_prepay()
 
-        <strong>Advanced Techniques:</strong><br>
-        • #9: Top-Up Consolidation - Debt arbitrage<br>
-        • #10: Flexi-Loan Strategy - Maximum flexibility<br>
-        • #11: Rent vs Buy - Complete HRA vs 80C+24b<br>
-        • #12: Early Closure vs Investment - Final decision<br><br>
+    # Strategy 5: Overdraft Loan
+    st.markdown("---")
+    with st.expander("Strategy #5: Overdraft (OD) Loan Strategy", expanded=False):
+        show_strategy_5_overdraft()
 
-        <strong>Total Value: Potential savings of ₹8-25 Lakhs</strong><br>
-        <strong>Your Cost: Just ₹99 (one-time, lifetime access)</strong>
-        </div>
-        """, unsafe_allow_html=True)
+    # Strategy 6: Step-Up EMI
+    st.markdown("---")
+    with st.expander("Strategy #6: Step-Up EMI Strategy", expanded=False):
+        show_strategy_6_stepup()
 
-        if st.button("🔓 Unlock All 11 Premium Strategies", use_container_width=True, type="primary"):
-            st.session_state.selected_page = 'checkout'
-            st.rerun()
-    else:
-        st.markdown("### ✅ All Premium Strategies (You Have Full Access)")
+    # Strategy 7: Part-Prepayment
+    st.markdown("---")
+    with st.expander("Strategy #7: Part-Prepayment Optimizer", expanded=False):
+        show_strategy_7_partprepay()
 
-        # Strategy 2: Tax Refund Amplification
-        st.markdown("---")
-        with st.expander("Strategy #2: Tax Refund Amplification", expanded=False):
-            show_strategy_2_tax_refund()
+    # Strategy 8: Balance Transfer
+    st.markdown("---")
+    with st.expander("Strategy #8: Balance Transfer Calculator", expanded=False):
+        show_strategy_8_balance_transfer()
 
-        # Strategy 3: Lump Sum Accelerator
-        st.markdown("---")
-        with st.expander("Strategy #3: Lump Sum Accelerator", expanded=False):
-            show_strategy_3_lumpsum()
+    # Strategy 9: Top-Up Consolidation
+    st.markdown("---")
+    with st.expander("Strategy #9: Top-Up Loan Consolidation", expanded=False):
+        show_strategy_9_topup()
 
-        # Strategy 4: SIP vs Prepayment
-        st.markdown("---")
-        with st.expander("Strategy #4: SIP vs Prepayment Optimizer", expanded=False):
-            show_strategy_4_sip_vs_prepay()
+    # Strategy 10: Flexi-Loan
+    st.markdown("---")
+    with st.expander("Strategy #10: Flexi-Loan Strategy", expanded=False):
+        show_strategy_10_flexiloan()
 
-        # Strategy 5: Overdraft Loan
-        st.markdown("---")
-        with st.expander("Strategy #5: Overdraft (OD) Loan Strategy", expanded=False):
-            show_strategy_5_overdraft()
+    # Strategy 11: Rent vs Buy
+    st.markdown("---")
+    with st.expander("Strategy #11: Rent vs Buy Analyzer", expanded=False):
+        show_strategy_11_rent_vs_buy()
 
-        # Strategy 6: Step-Up EMI
-        st.markdown("---")
-        with st.expander("Strategy #6: Step-Up EMI Strategy", expanded=False):
-            show_strategy_6_stepup()
+    # Strategy 12: Early Closure vs Investment
+    st.markdown("---")
+    with st.expander("Strategy #12: Early Closure vs Investment", expanded=False):
+        show_strategy_12_early_closure()
 
-        # Strategy 7: Part-Prepayment
-        st.markdown("---")
-        with st.expander("Strategy #7: Part-Prepayment Optimizer", expanded=False):
-            show_strategy_7_partprepay()
+    st.markdown("---")
+    st.success("""
+    🎉 **All 12 comprehensive strategies available for testing!**
 
-        # Strategy 8: Balance Transfer
-        st.markdown("---")
-        with st.expander("Strategy #8: Balance Transfer Calculator", expanded=False):
-            show_strategy_8_balance_transfer()
+    Each strategy includes:
+    ✅ Interactive calculator with real logic
+    ✅ Complete tax calculations (80C, 24b, LTCG, STCG)
+    ✅ Detailed comparison tables
+    ✅ Winner declarations
+    ✅ Implementation guides
+    ✅ Emotional support & guidance
+    ✅ Common mistakes to avoid
 
-        # Strategy 9: Top-Up Consolidation
-        st.markdown("---")
-        with st.expander("Strategy #9: Top-Up Loan Consolidation", expanded=False):
-            show_strategy_9_topup()
-
-        # Strategy 10: Flexi-Loan
-        st.markdown("---")
-        with st.expander("Strategy #10: Flexi-Loan Strategy", expanded=False):
-            show_strategy_10_flexiloan()
-
-        # Strategy 11: Rent vs Buy
-        st.markdown("---")
-        with st.expander("Strategy #11: Rent vs Buy Analyzer", expanded=False):
-            show_strategy_11_rent_vs_buy()
-
-        # Strategy 12: Early Closure vs Investment
-        st.markdown("---")
-        with st.expander("Strategy #12: Early Closure vs Investment", expanded=False):
-            show_strategy_12_early_closure()
-
-        st.markdown("---")
-        st.success("""
-        🎉 **Congratulations! You have access to ALL 12 comprehensive strategies!**
-
-        Each strategy includes:
-        ✅ Interactive calculator with real logic
-        ✅ Complete tax calculations (80C, 24b, LTCG, STCG)
-        ✅ Detailed comparison tables
-        ✅ Winner declarations
-        ✅ Implementation guides
-        ✅ Emotional support & guidance
-        ✅ Common mistakes to avoid
-
-        Use these tools to save lakhs on your home loan! 💰
-        """)
+    Use these tools to save lakhs on your home loan! 💰
+    """)
 
 # BANK COMPARISON PAGE
 elif selected_page == 'bank_comparison':
@@ -3559,6 +3818,80 @@ elif selected_page == 'bank_comparison':
     • {min_cost_bank['Special Offer']}
     </div>
     """, unsafe_allow_html=True)
+
+    # Rate update information
+    from datetime import datetime
+
+    try:
+        last_update = datetime.strptime(RATE_LAST_UPDATED, "%Y-%m-%d")
+        days_ago = (datetime.now() - last_update).days
+
+        if days_ago == 0:
+            update_msg = "✅ Rates updated today"
+            update_color = "success"
+        elif days_ago <= 7:
+            update_msg = f"✅ Rates updated {days_ago} days ago"
+            update_color = "success"
+        elif days_ago <= 14:
+            update_msg = f"⚠️ Rates updated {days_ago} days ago - Consider checking bank websites"
+            update_color = "warning"
+        else:
+            update_msg = f"⚠️ Rates updated {days_ago} days ago - Please verify with banks"
+            update_color = "warning"
+    except:
+        update_msg = "ℹ️ Rate update status unknown"
+        update_color = "info"
+
+    if update_color == "success":
+        st.success(f"{update_msg} | Source: {RATE_UPDATE_SOURCE}")
+    elif update_color == "warning":
+        st.warning(f"{update_msg} | Source: {RATE_UPDATE_SOURCE}")
+    else:
+        st.info(f"{update_msg} | Source: {RATE_UPDATE_SOURCE}")
+
+    st.markdown("---")
+    st.markdown("## 📊 Bank Reviews & Why Rates Differ")
+    st.markdown("Understanding why banks charge different rates helps you make better decisions. Here's what real customers say:")
+
+    # Display reviews for each bank
+    for bank_name in BANK_DATA.keys():
+        if bank_name in BANK_REVIEWS:
+            review = BANK_REVIEWS[bank_name]
+
+            with st.expander(f"**{bank_name} - {BANK_DATA[bank_name]['rate']}%** ⭐ {review['rating']}/5 ({review['total_reviews']} reviews)", expanded=False):
+
+                # Service Quality Badge
+                quality_color = {"Good": "🟢", "Mixed": "🟡", "Average": "🟠", "Poor": "🔴"}
+                quality_emoji = quality_color.get(review['service_quality'], "⚪")
+                st.markdown(f"**Service Quality:** {quality_emoji} {review['service_quality']}")
+
+                # Why this rate?
+                rate_key = [k for k in review.keys() if k.startswith('why_')][0]
+                st.markdown(f"### 💡 Why {BANK_DATA[bank_name]['rate']}% rate?")
+                st.info(review[rate_key])
+
+                # Pros and Cons
+                col_pro, col_con = st.columns(2)
+
+                with col_pro:
+                    st.markdown("### ✅ Pros")
+                    for pro in review['pros']:
+                        st.markdown(f"• {pro}")
+
+                with col_con:
+                    st.markdown("### ❌ Cons")
+                    for con in review['cons']:
+                        st.markdown(f"• {con}")
+
+                # Best for / Avoid if
+                st.markdown("---")
+                col_best, col_avoid = st.columns(2)
+
+                with col_best:
+                    st.markdown(f"**👍 Best For:** {review['best_for']}")
+
+                with col_avoid:
+                    st.markdown(f"**👎 Avoid If:** {review['avoid_if']}")
 
 # TIPS PAGE
 elif selected_page == 'tips':
