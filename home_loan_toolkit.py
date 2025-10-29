@@ -14,6 +14,7 @@ What makes us different:
 This isn't just calculations - it's wisdom from those who walked this path before you.
 
 Created: October 2025
+Updated: October 29, 2025 - Critical fix deployment
 """
 
 import streamlit as st
