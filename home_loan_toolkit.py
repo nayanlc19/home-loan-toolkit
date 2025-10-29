@@ -454,12 +454,15 @@ def create_razorpay_payment_link(user_email):
         if not razorpay_client:
             return None, "Razorpay is not configured"
 
+        # Get user name from session or email
+        user_name = st.session_state.get('user_name', user_email.split('@')[0])
+
         payment_data = {
             "amount": PAYMENT_AMOUNT,
             "currency": PAYMENT_CURRENCY,
             "description": "Home Loan Toolkit - Full Access Payment",
             "customer": {
-                "name": "Customer",
+                "name": user_name,
                 "email": user_email
             },
             "notify": {
