@@ -74,36 +74,42 @@ BANK_DATA = {
     "SBI": {
         "rate": 8.50,
         "processing_fee_pct": 0.35,
+        "min_processing": 2000,
         "prepayment": "Nil for floating",
         "special": "0.05% off for women"
     },
     "HDFC": {
         "rate": 8.60,
         "processing_fee_pct": 0.50,
+        "min_processing": 3000,
         "prepayment": "Nil for floating",
         "special": "0.05% off for salaried women"
     },
     "ICICI": {
         "rate": 8.75,
         "processing_fee_pct": 0.50,
+        "min_processing": 3000,
         "prepayment": "Nil for floating",
         "special": "None"
     },
     "Axis": {
         "rate": 8.70,
         "processing_fee_pct": 0.50,
+        "min_processing": 3000,
         "prepayment": "Nil for floating",
         "special": "0.05% off for defense personnel"
     },
     "Kotak": {
         "rate": 8.70,
         "processing_fee_pct": 0.50,
+        "min_processing": 3000,
         "prepayment": "Nil for floating",
         "special": "None"
     },
     "PNB": {
         "rate": 8.40,
         "processing_fee_pct": 0.35,
+        "min_processing": 2000,
         "prepayment": "Nil for floating",
         "special": "0.05% off for women"
     }
@@ -456,13 +462,16 @@ def format_inr(amount):
 def calculate_loan_cost_with_tax(loan_amount, annual_rate, tenure_years, tax_slab, old_regime, property_type, annual_prepayment=0):
     """
     Calculate complete loan cost with tax benefits
-    Returns dict with total_interest, total_tax_benefit, net_cost
+    Returns dict with total_interest, total_tax_benefit, net_cost, actual_tenure_years
     """
     months = tenure_years * 12
     schedule = generate_amortization_schedule(loan_amount, annual_rate, months, annual_prepayment)
 
     total_interest = sum([s['interest'] for s in schedule])
     total_principal = sum([s['principal'] for s in schedule])
+
+    # Calculate actual tenure (in case of prepayments, loan pays off early)
+    actual_tenure_years = len(schedule) / 12
 
     # Calculate tax benefits year-wise
     total_80c_benefit = 0
@@ -490,7 +499,8 @@ def calculate_loan_cost_with_tax(loan_amount, annual_rate, tenure_years, tax_sla
         'total_80c_benefit': total_80c_benefit,
         'total_24b_benefit': total_24b_benefit,
         'total_tax_benefit': total_tax_benefit,
-        'net_cost': net_cost
+        'net_cost': net_cost,
+        'actual_tenure_years': actual_tenure_years
     }
 
 # ============================================================================
