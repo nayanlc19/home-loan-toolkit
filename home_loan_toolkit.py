@@ -3774,7 +3774,7 @@ elif selected_page == 'strategies':
             st.info("Click the 'Sign in with Google' button in the sidebar or at the top to continue")
 
         st.markdown("---")
-        return  # Exit early, don't show premium strategies
+        st.stop()  # Exit early, don't show premium strategies
 
     # Continue showing strategies 2-12 for paid users
 
