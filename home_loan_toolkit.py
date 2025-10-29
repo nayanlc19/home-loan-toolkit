@@ -504,6 +504,179 @@ def calculate_loan_cost_with_tax(loan_amount, annual_rate, tenure_years, tax_sla
     }
 
 # ============================================================================
+# PERSONALIZED RATE CALCULATOR
+# ============================================================================
+
+def calculate_personalized_rate(base_rate, user_profile):
+    """
+    Calculate personalized interest rate based on user profile factors
+
+    Args:
+        base_rate: Base interest rate from bank
+        user_profile: Dict with credit_score, age, gender, employment, loan_amount, property_location
+
+    Returns:
+        dict with final_rate, adjustments, total_adjustment
+    """
+    adjustments = {}
+
+    # Credit Score Adjustment
+    credit_score = user_profile.get('credit_score', '750+')
+    if credit_score == '750+':
+        adjustments['credit_score'] = -0.25
+    elif credit_score == '700-749':
+        adjustments['credit_score'] = 0.0
+    elif credit_score == '650-699':
+        adjustments['credit_score'] = 0.35
+    else:  # <650
+        adjustments['credit_score'] = 0.75
+
+    # Age Adjustment
+    age = user_profile.get('age', 35)
+    if 25 <= age <= 35:
+        adjustments['age'] = -0.10
+    elif 36 <= age <= 45:
+        adjustments['age'] = 0.0
+    elif 46 <= age <= 55:
+        adjustments['age'] = 0.10
+    else:  # 56-62
+        adjustments['age'] = 0.20
+
+    # Gender Adjustment (Women get concession)
+    gender = user_profile.get('gender', 'Male')
+    if gender == 'Female':
+        adjustments['gender'] = -0.05
+    else:
+        adjustments['gender'] = 0.0
+
+    # Employment Type Adjustment
+    employment = user_profile.get('employment', 'Salaried-Other')
+    if employment == 'Salaried-Govt':
+        adjustments['employment'] = -0.15
+    elif employment == 'Salaried-MNC':
+        adjustments['employment'] = -0.10
+    elif employment == 'Salaried-Other':
+        adjustments['employment'] = 0.0
+    else:  # Self-Employed
+        adjustments['employment'] = 0.25
+
+    # Loan Amount Adjustment
+    loan_amount = user_profile.get('loan_amount', 5000000)
+    if loan_amount >= 7500000:  # ≥75L
+        adjustments['loan_amount'] = -0.10
+    elif loan_amount <= 2000000:  # ≤20L
+        adjustments['loan_amount'] = 0.15
+    else:
+        adjustments['loan_amount'] = 0.0
+
+    # Property Location Adjustment
+    location = user_profile.get('property_location', 'Metro Tier-1')
+    if location == 'Metro Tier-1':
+        adjustments['location'] = 0.0
+    elif location == 'Tier-2':
+        adjustments['location'] = 0.10
+    else:  # Tier-3
+        adjustments['location'] = 0.15
+
+    # Calculate final rate
+    total_adjustment = sum(adjustments.values())
+    final_rate = base_rate + total_adjustment
+
+    # Ensure rate doesn't go below 7.0% or above 15.0%
+    final_rate = max(7.0, min(15.0, final_rate))
+
+    return {
+        'final_rate': round(final_rate, 2),
+        'adjustments': adjustments,
+        'total_adjustment': round(total_adjustment, 2)
+    }
+
+def calculate_overdraft_loan_cost(loan_amount, annual_rate, tenure_months, surplus_initial,
+                                  surplus_monthly, tax_slab, old_regime, property_type):
+    """
+    Calculate cost for home loan with overdraft facility (daily interest on effective outstanding)
+
+    Interest charged on: (Loan Amount - OD Balance) daily
+    """
+    monthly_rate = annual_rate / 12 / 100
+
+    # Calculate EMI
+    emi = calculate_emi(loan_amount, annual_rate, tenure_months)
+
+    # Simulate overdraft account month by month
+    outstanding = loan_amount
+    od_balance = surplus_initial  # Money parked in OD account
+    total_interest_paid = 0
+    total_principal_paid = 0
+    monthly_details = []
+
+    for month in range(1, tenure_months + 1):
+        if outstanding <= 0:
+            break
+
+        # Effective outstanding (what interest is charged on)
+        effective_outstanding = max(0, outstanding - od_balance)
+
+        # Interest for this month (on effective outstanding only!)
+        month_interest = effective_outstanding * monthly_rate
+
+        # Principal component
+        month_principal = emi - month_interest
+
+        # Update balances
+        outstanding -= month_principal
+        total_interest_paid += month_interest
+        total_principal_paid += month_principal
+
+        # Add monthly surplus to OD balance
+        od_balance += surplus_monthly
+
+        monthly_details.append({
+            'month': month,
+            'outstanding': max(0, outstanding),
+            'od_balance': od_balance,
+            'effective_outstanding': effective_outstanding,
+            'interest': month_interest,
+            'principal': month_principal
+        })
+
+    # Calculate tax benefits (same as regular loan)
+    # Note: OD deposits are NOT eligible for 80C
+    actual_months = len(monthly_details)
+    actual_tenure_years = actual_months / 12
+
+    total_80c_benefit = 0
+    total_24b_benefit = 0
+
+    for year in range(1, int(actual_tenure_years) + 2):
+        year_interest = sum([m['interest'] for m in monthly_details
+                            if (m['month'] - 1) // 12 + 1 == year])
+        year_principal = sum([m['principal'] for m in monthly_details
+                             if (m['month'] - 1) // 12 + 1 == year])
+
+        # 24b benefit (interest deduction)
+        if property_type == "Self-Occupied":
+            total_24b_benefit += min(year_interest, SECTION_24B_LIMIT_SELF) * (tax_slab / 100)
+        else:
+            total_24b_benefit += year_interest * (tax_slab / 100)
+
+    total_tax_benefit = total_24b_benefit  # No 80C for OD deposits
+    net_cost = loan_amount + total_interest_paid - total_tax_benefit
+
+    return {
+        'emi': emi,
+        'total_interest': total_interest_paid,
+        'total_principal': total_principal_paid,
+        'total_tax_benefit': total_tax_benefit,
+        'total_24b_benefit': total_24b_benefit,
+        'net_cost': net_cost,
+        'actual_tenure_months': actual_months,
+        'actual_tenure_years': actual_tenure_years,
+        'monthly_details': monthly_details,
+        'interest_saved_vs_regular': 0  # Will be calculated when comparing
+    }
+
+# ============================================================================
 # INITIALIZE SESSION STATE
 # ============================================================================
 
@@ -549,6 +722,9 @@ page_options = {
     'home': '🏠 Home',
     'strategies': '💰 12 Strategies',
     'bank_comparison': '🏦 Bank Comparison',
+    'overdraft_comparison': '🔄 EMI vs Overdraft',
+    'personalized_rates': '👤 Your Custom Rate',
+    'hidden_issues': '⚠️ Hidden Problems',
     'tips': '💡 Tips & Tricks',
     'checkout': '💳 Checkout'
 }
@@ -3462,6 +3638,435 @@ elif selected_page == 'checkout':
                     else:
                         st.error(f"Error: {error}")
                         st.info("Please contact support: dmcpexam2020@gmail.com")
+
+# OVERDRAFT vs EMI COMPARISON PAGE
+elif selected_page == 'overdraft_comparison':
+    st.markdown("## 🔄 EMI vs Overdraft Comparison")
+    st.markdown("### Discover if Home Loan Overdraft (like SBI MaxGain) Can Save You Lakhs!")
+
+    st.markdown("""
+    <div class="info-banner">
+    <strong>💡 What is Home Loan Overdraft?</strong><br>
+    Interest charged ONLY on <code>(Loan Amount - Your OD Balance)</code> daily!<br>
+    Park surplus funds and save on interest while keeping liquidity.
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Overdraft-specific inputs
+    col_od1, col_od2 = st.columns(2)
+
+    with col_od1:
+        st.markdown("#### Overdraft Parameters")
+        od_rate = st.number_input("Overdraft Interest Rate (%)",
+                                   min_value=5.0, max_value=15.0, value=8.75, step=0.05,
+                                   help="Usually 0.15-0.25% higher than regular loan")
+        surplus_initial = st.number_input("Initial Surplus to Park (₹)",
+                                         min_value=0, max_value=10000000, value=500000, step=50000,
+                                         help="Lumpsum amount you can deposit initially")
+        surplus_monthly = st.number_input("Monthly Surplus Addition (₹)",
+                                         min_value=0, max_value=500000, value=20000, step=5000,
+                                         help="Extra money you can park each month")
+
+    with col_od2:
+        st.markdown("#### Regular Loan for Comparison")
+        st.metric("Interest Rate", f"{interest_rate}%")
+        st.metric("Loan Amount", format_inr(loan_amount))
+        st.metric("Tenure", f"{tenure_years} years")
+
+    # Calculate both scenarios
+    old_tax_regime = (tax_regime == "Old (with deductions)")
+
+    # Regular EMI loan
+    regular_loan = calculate_loan_cost_with_tax(
+        loan_amount, interest_rate, tenure_years,
+        tax_slab, old_tax_regime, property_type, 0
+    )
+
+    # Overdraft loan
+    od_loan = calculate_overdraft_loan_cost(
+        loan_amount, od_rate, tenure_years * 12,
+        surplus_initial, surplus_monthly,
+        tax_slab, old_tax_regime, property_type
+    )
+
+    # Calculate savings
+    od_loan['interest_saved_vs_regular'] = regular_loan['total_interest'] - od_loan['total_interest']
+    total_savings = regular_loan['net_cost'] - od_loan['net_cost']
+
+    # Display comparison
+    st.markdown("### 📊 Cost Comparison")
+
+    col_comp1, col_comp2, col_comp3 = st.columns(3)
+
+    with col_comp1:
+        st.markdown("#### 💳 Regular EMI Loan")
+        st.metric("Total Interest", format_inr(regular_loan['total_interest']))
+        st.metric("Tax Benefit", format_inr(regular_loan['total_tax_benefit']))
+        st.metric("Net Cost", format_inr(regular_loan['net_cost']))
+
+    with col_comp2:
+        st.markdown("#### 🔄 Overdraft Loan")
+        st.metric("Total Interest", format_inr(od_loan['total_interest']))
+        st.metric("Tax Benefit", format_inr(od_loan['total_tax_benefit']))
+        st.metric("Net Cost", format_inr(od_loan['net_cost']))
+
+    with col_comp3:
+        st.markdown("#### 💰 Your Savings")
+        st.metric("Interest Saved", format_inr(od_loan['interest_saved_vs_regular']),
+                 delta=f"{od_loan['interest_saved_vs_regular']/regular_loan['total_interest']*100:.1f}%")
+        st.metric("Total Savings", format_inr(total_savings),
+                 delta="Lower is better" if total_savings > 0 else "Regular is better")
+
+    if total_savings > 0:
+        st.success(f"🎉 **Overdraft can save you {format_inr(total_savings)}!** ({total_savings/regular_loan['net_cost']*100:.1f}% reduction)")
+    else:
+        st.warning(f"⚠️ Regular loan is cheaper by {format_inr(abs(total_savings))}. Overdraft works best with larger surplus amounts.")
+
+    # Surplus impact analysis
+    st.markdown("### 📈 Impact of Different Surplus Amounts")
+
+    surplus_scenarios = [0, 200000, 500000, 1000000, 2000000]
+    scenario_data = []
+
+    for surplus in surplus_scenarios:
+        if surplus <= loan_amount:
+            temp_od = calculate_overdraft_loan_cost(
+                loan_amount, od_rate, tenure_years * 12,
+                surplus, surplus_monthly, tax_slab, old_tax_regime, property_type
+            )
+            scenario_data.append({
+                "Initial Surplus": format_inr(surplus),
+                "Total Interest": format_inr(temp_od['total_interest']),
+                "Interest Saved": format_inr(regular_loan['total_interest'] - temp_od['total_interest']),
+                "Net Cost": format_inr(temp_od['net_cost'])
+            })
+
+    st.dataframe(pd.DataFrame(scenario_data), use_container_width=True, hide_index=True)
+
+    st.markdown("""
+    <div class="info-banner">
+    <strong>💡 Key Insight:</strong> Even though overdraft rates are higher ({od_rate}% vs {interest_rate}%),
+    you pay interest only on the effective outstanding (Loan - OD Balance), which can result in MASSIVE savings!
+    </div>
+    """.format(od_rate=od_rate, interest_rate=interest_rate), unsafe_allow_html=True)
+
+# PERSONALIZED RATES PAGE
+elif selected_page == 'personalized_rates':
+    st.markdown("## 👤 Your Personalized Interest Rate")
+    st.markdown("### Find out what rate YOU actually qualify for based on your profile")
+
+    st.markdown("""
+    <div class="info-banner">
+    Banks adjust interest rates based on your credit score, age, employment, and more.<br>
+    <strong>This calculator shows your REAL rate, not the advertised rate!</strong>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # User profile inputs
+    col_prof1, col_prof2, col_prof3 = st.columns(3)
+
+    with col_prof1:
+        st.markdown("#### Credit & Demographics")
+        credit_score = st.selectbox("Credit Score",
+                                    options=['750+', '700-749', '650-699', '<650'],
+                                    help="Higher score = lower rate")
+        age = st.slider("Age", min_value=23, max_value=62, value=35,
+                       help="Younger borrowers often get better rates")
+        gender = st.radio("Gender", options=['Male', 'Female', 'Other'],
+                         help="Women often get 0.05% concession")
+
+    with col_prof2:
+        st.markdown("#### Employment & Income")
+        employment = st.selectbox("Employment Type",
+                                 options=['Salaried-Govt', 'Salaried-MNC',
+                                         'Salaried-Other', 'Self-Employed'],
+                                 help="Govt/MNC employees get better rates")
+        profile_loan_amount = st.number_input("Loan Amount (₹)",
+                                             min_value=100000, max_value=100000000,
+                                             value=loan_amount, step=100000)
+
+    with col_prof3:
+        st.markdown("#### Property Location")
+        location = st.selectbox("Property Location",
+                               options=['Metro Tier-1', 'Tier-2', 'Tier-3'],
+                               help="Metro properties get better rates")
+
+    # Build user profile
+    user_profile = {
+        'credit_score': credit_score,
+        'age': age,
+        'gender': gender,
+        'employment': employment,
+        'loan_amount': profile_loan_amount,
+        'property_location': location
+    }
+
+    # Calculate personalized rates for all banks
+    st.markdown("### 🏦 Your Personalized Rates Across Banks")
+
+    personalized_data = []
+    for bank, info in BANK_DATA.items():
+        base_rate = info['rate']
+        result = calculate_personalized_rate(base_rate, user_profile)
+
+        personalized_data.append({
+            "Bank": bank,
+            "Base Rate": f"{base_rate}%",
+            "Your Rate": f"{result['final_rate']}%",
+            "Adjustment": f"{result['total_adjustment']:+.2f}%",
+            "Special Offer": info['special']
+        })
+
+    st.dataframe(pd.DataFrame(personalized_data), use_container_width=True, hide_index=True)
+
+    # Show detailed breakdown for best bank
+    best_bank = min(personalized_data, key=lambda x: float(x['Your Rate'].strip('%')))
+
+    st.success(f"🏆 **Best Rate for You: {best_bank['Bank']} at {best_bank['Your Rate']}**")
+
+    # Show breakdown of adjustments
+    sample_bank = list(BANK_DATA.keys())[0]
+    sample_result = calculate_personalized_rate(BANK_DATA[sample_bank]['rate'], user_profile)
+
+    st.markdown("### 📊 Rate Adjustment Breakdown")
+
+    adjustment_data = []
+    adjustment_labels = {
+        'credit_score': '💳 Credit Score',
+        'age': '🎂 Age',
+        'gender': '👤 Gender',
+        'employment': '💼 Employment',
+        'loan_amount': '💰 Loan Amount',
+        'location': '📍 Location'
+    }
+
+    for key, value in sample_result['adjustments'].items():
+        if value != 0:
+            adjustment_data.append({
+                "Factor": adjustment_labels.get(key, key),
+                "Adjustment": f"{value:+.2f}%",
+                "Impact": "✅ Positive" if value < 0 else "⚠️ Negative"
+            })
+
+    st.dataframe(pd.DataFrame(adjustment_data), use_container_width=True, hide_index=True)
+
+    st.markdown("""
+    <div class="info-banner">
+    <strong>💡 How to Improve Your Rate:</strong><br>
+    • Improve credit score to 750+ (save 0.25-0.75%)<br>
+    • Consider co-borrower if self-employed (save 0.25%)<br>
+    • Increase loan amount if possible (save 0.10%)<br>
+    • Women co-applicants get additional discount
+    </div>
+    """, unsafe_allow_html=True)
+
+# HIDDEN ISSUES PAGE
+elif selected_page == 'hidden_issues':
+    st.markdown("## ⚠️ Hidden Problems in Home Loans")
+    st.markdown("### Real issues borrowers face (and banks won't tell you!)")
+
+    tab_issues1, tab_issues2, tab_issues3 = st.tabs([
+        "💳 Regular Loan Problems",
+        "🔄 Overdraft Problems",
+        "🚨 Non-Payment Consequences"
+    ])
+
+    with tab_issues1:
+        st.markdown("### Common Problems with Regular Home Loans")
+
+        st.markdown("""
+        #### 1️⃣ The EMI Structure Trap
+        **Problem:** Your initial EMIs are 90% interest, 10% principal!
+
+        **Example:** ₹50L loan @ 8.5%
+        - Month 1 EMI: ₹43,391
+        - Interest: ₹35,417 (82%)
+        - Principal: ₹7,974 (18%)
+
+        **Impact:** You're paying rent to the bank for years before owning your home.
+
+        **Solution:** Start prepaying from Year 1, even small amounts (₹10K/year helps!)
+
+        ---
+
+        #### 2️⃣ Hidden Prepayment Lock-in
+        **Problem:** "Nil prepayment charges" has fine print!
+
+        **Hidden Clauses:**
+        - Free only for floating rate loans
+        - Fixed rate: 2-5% penalty
+        - Some banks: Min 6-12 months lock-in
+        - Foreclosure ≠ Part-prepayment rules
+
+        **Real Story:** Customer tried prepaying ₹5L in Month 2, charged ₹25,000 penalty.
+
+        **Solution:** Read agreement carefully. Confirm in email before prepaying.
+
+        ---
+
+        #### 3️⃣ Insurance Bundling Trap
+        **Problem:** Bank pushes expensive insurance (home, life, medical)
+
+        **Bank's Offer:** ₹15,000/year life insurance (₹50L cover)
+        **Market Rate:** ₹8,000/year for same cover
+
+        **Hidden Cost:** ₹7,000 × 20 years = ₹1,40,000 wasted!
+
+        **Solution:** Get insurance separately. Bank CANNOT force bundling (RBI rule).
+
+        ---
+
+        #### 4️⃣ Processing Fee Surprise
+        **Advertised:** "0.5% processing fee"
+        **Reality:** 0.5% + GST + legal + valuation + CERSAI
+
+        **Breakdown for ₹50L loan:**
+        - Processing: ₹25,000
+        - GST (18%): ₹4,500
+        - Legal: ₹10,000
+        - Valuation: ₹3,000
+        - CERSAI: ₹100
+        - **Total: ₹42,600** (not ₹25,000!)
+
+        **Solution:** Negotiate. Some banks waive for salary account holders.
+        """)
+
+    with tab_issues2:
+        st.markdown("### Hidden Problems with Overdraft Facilities")
+
+        st.markdown("""
+        #### 1️⃣ Psychological Trap of 'Free Money'
+        **Problem:** OD account feels like YOUR money
+
+        **Reality:** It's still a LOAN. Every withdrawal costs you.
+
+        **Example:** Park ₹10L, then withdraw ₹2L for vacation
+        - Interest savings lost: ₹14,166/year
+        - Vacation actual cost: ₹2L + ₹14K = ₹2.14L
+
+        **Solution:** Treat OD as locked FD. Only withdraw for emergencies.
+
+        ---
+
+        #### 2️⃣ Lost 80C Tax Benefit
+        **Problem:** Money in OD ≠ Principal repayment
+
+        **Regular Loan:** ₹1.5L principal → ₹46,500 tax saved (@31%)
+        **Overdraft:** ₹1.5L in OD → ₹0 tax benefit
+
+        **Hidden Cost:** ₹46,500/year × 20 years = ₹9.3L!
+
+        **When OD Still Wins:** If interest saved > 80C benefit lost
+
+        **Calculation:** Need ₹5L+ surplus for break-even
+
+        ---
+
+        #### 3️⃣ Minimum Loan Amount Restrictions
+        **Problem:** OD only for ₹15L+ loans (some banks ₹25L+)
+
+        **Impact:** Small loan borrowers can't access OD benefits
+
+        **Workaround:** None. Regular loan is your only option.
+
+        ---
+
+        #### 4️⃣ Discipline Required
+        **Problem:** OD works ONLY if you're financially disciplined
+
+        **Failed Cases:**
+        - Using OD for lifestyle expenses
+        - Not maintaining monthly surplus
+        - Emergency fund = OD balance (wrong!)
+
+        **Success Requires:**
+        - Separate emergency fund (6 months)
+        - OD balance review quarterly
+        - Resist withdrawal temptation
+        """)
+
+    with tab_issues3:
+        st.markdown("### What Happens If You Can't Pay?")
+
+        st.markdown("""
+        #### Day-by-Day Consequences
+
+        **Day 1-30 (Missed EMI):**
+        - Penalty: 2% per month (24% annual!)
+        - Example: ₹40,000 EMI → ₹800 penalty
+        - CIBIL: Not yet impacted
+
+        **Day 31-60 (Second missed EMI):**
+        - Penalty: ₹800 × 2 = ₹1,600
+        - Bank calls/emails start
+        - CIBIL: Marked as 30 DPD (Days Past Due)
+        - Credit score drops: 750 → 680
+
+        **Day 61-90 (Third missed EMI):**
+        - Penalty: ₹2,400
+        - CIBIL: 60 DPD
+        - Credit score: 680 → 620
+        - Legal notice sent
+        - Future loan applications rejected
+
+        **Day 91-180:**
+        - Account marked as NPA (Non-Performing Asset)
+        - CIBIL: 90 DPD (stays for 7 years!)
+        - Credit score: Below 600
+        - Bank can auction property under SARFAESI Act
+        - No court required for auction
+
+        **Post 180 days:**
+        - Property auction process starts
+        - Recovery agents visit
+        - Public notices published
+        - All future loans blocked
+        - Employment background verification fails
+
+        ---
+
+        #### Recovery Options If You're Struggling
+
+        **Option 1: Loan Restructuring**
+        - Extend tenure (reduce EMI)
+        - Moratorium period (3-6 months)
+        - Contact bank BEFORE defaulting
+
+        **Option 2: Sell Property**
+        - Better than foreclosure
+        - You keep equity after loan repayment
+        - CIBIL impact minimal
+
+        **Option 3: Rent Out & Cover EMI**
+        - Rent income covers EMI
+        - You stay solvent
+        - Property appreciation continues
+
+        **DON'T DO:**
+        - Ignore bank calls
+        - Take personal loan to pay home loan
+        - Hide from recovery agents
+        """)
+
+        # Late payment calculator
+        st.markdown("### 🧮 Late Payment Cost Calculator")
+
+        col_late1, col_late2 = st.columns(2)
+
+        with col_late1:
+            emi_amount = st.number_input("Monthly EMI (₹)",
+                                        min_value=1000, value=40000, step=1000)
+            days_late = st.slider("Days Late", min_value=1, max_value=180, value=30)
+
+        with col_late2:
+            penalty_rate = 24  # 2% per month = 24% annual
+            penalty_amount = emi_amount * (penalty_rate/100) * (days_late/30)
+
+            st.metric("Penalty Amount", format_inr(penalty_amount))
+            st.metric("Effective EMI", format_inr(emi_amount + penalty_amount))
+
+            if days_late >= 30:
+                st.error(f"⚠️ CIBIL Impact: {days_late} DPD recorded!")
 
 # ============================================================================
 # FOOTER
