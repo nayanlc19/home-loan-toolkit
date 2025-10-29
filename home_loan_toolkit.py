@@ -854,21 +854,43 @@ else:
 
 st.sidebar.markdown("---")
 
-# Navigation menu
-page_options = {
+# Navigation menu - Dynamic based on user status
+# Free pages available to everyone
+free_pages = {
     'start_here': '🚀 Start Here',
     'home': '🏠 Home',
     'strategies': '💰 12 Strategies',
+    'strategy_comparison': '📊 Compare All Strategies',
     'bank_comparison': '🏦 Bank Comparison',
+}
+
+# Premium pages (shown for all, but with paywall for non-paid users)
+# Note: Currently paywall is disabled, so all pages are accessible
+premium_pages = {
     'overdraft_comparison': '🔄 EMI vs Overdraft',
     'personalized_rates': '👤 Your Custom Rate',
     'hidden_issues': '⚠️ Hidden Problems',
     'tips': '💡 Tips & Tricks',
+}
+
+# Checkout page (only show if not logged in or not paid)
+checkout_page = {
     'checkout': '💳 Checkout'
 }
 
+# Build navigation menu
+page_options = {}
+page_options.update(free_pages)
+page_options.update(premium_pages)
+
+# Add checkout only if user needs to pay (currently disabled since paywall is off)
+if not is_paid and not is_admin_user and False:  # Disabled since paywall is off
+    page_options.update(checkout_page)
+
+# Render navigation buttons
 for page_key, page_label in page_options.items():
-    if st.sidebar.button(page_label, use_container_width=True):
+    button_key = f"nav_{page_key}"
+    if st.sidebar.button(page_label, key=button_key, use_container_width=True):
         st.session_state.selected_page = page_key
         st.rerun()
 
@@ -3773,6 +3795,193 @@ elif selected_page == 'strategies':
 
     Use these tools to save lakhs on your home loan! 💰
     """)
+
+# STRATEGY COMPARISON PAGE
+elif selected_page == 'strategy_comparison':
+    st.markdown("## 📊 Compare All 12 Strategies")
+
+    st.markdown("""
+    <div class="info-banner">
+    Side-by-side comparison of all strategies to help you choose the best one for your situation!
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Calculate all strategies
+    comparison_data = []
+
+    # Strategy 1: Bi-Weekly Payments
+    biweekly_result = calculate_loan_cost_with_tax(loan_amount, interest_rate, tenure_years, tax_slab, old_regime, property_type, loan_amount * 0.04)
+    comparison_data.append({
+        "Strategy": "1️⃣ Bi-Weekly Payment",
+        "Best For": "Variable income, beginners",
+        "Effort": "Low",
+        "Annual Extra": "₹0 (frequency change)",
+        "Savings": f"₹{(biweekly_result['total_interest'] * 0.15)/100000:.1f}L",
+        "Tenure Reduction": "2-3 years",
+        "Difficulty": "Easy"
+    })
+
+    # Strategy 2: Tax Refund
+    comparison_data.append({
+        "Strategy": "2️⃣ Tax Refund Amplification",
+        "Best For": "80C maxed, high tax slab",
+        "Effort": "Low",
+        "Annual Extra": f"₹{(loan_amount * interest_rate/100 * 0.2)/1000:.0f}K",
+        "Savings": "₹5-8L",
+        "Tenure Reduction": "3-5 years",
+        "Difficulty": "Easy"
+    })
+
+    # Strategy 3: Bonus Prepayment
+    comparison_data.append({
+        "Strategy": "3️⃣ Annual Bonus/Gift",
+        "Best For": "Salaried with bonuses",
+        "Effort": "Low",
+        "Annual Extra": "₹1-2L (bonus)",
+        "Savings": "₹8-12L",
+        "Tenure Reduction": "5-7 years",
+        "Difficulty": "Easy"
+    })
+
+    # Strategy 4: Stepup
+    comparison_data.append({
+        "Strategy": "4️⃣ Step-Up Prepayment",
+        "Best For": "Growing income",
+        "Effort": "Low",
+        "Annual Extra": "10% yearly increase",
+        "Savings": "₹10-15L",
+        "Tenure Reduction": "6-8 years",
+        "Difficulty": "Easy"
+    })
+
+    # Strategy 5: Round-Up
+    comparison_data.append({
+        "Strategy": "5️⃣ EMI Round-Up",
+        "Best For": "Everyone (minimal effort)",
+        "Effort": "Very Low",
+        "Annual Extra": "₹20-30K",
+        "Savings": "₹3-5L",
+        "Tenure Reduction": "2-3 years",
+        "Difficulty": "Very Easy"
+    })
+
+    # Strategy 6: OD
+    comparison_data.append({
+        "Strategy": "6️⃣ Overdraft (OD) Loan",
+        "Best For": "High surplus, disciplined",
+        "Effort": "High",
+        "Annual Extra": "Surplus parking",
+        "Savings": "₹15-25L",
+        "Tenure Reduction": "8-12 years",
+        "Difficulty": "Hard"
+    })
+
+    # Strategy 7: Rent Income
+    comparison_data.append({
+        "Strategy": "7️⃣ Rent Income Prepay",
+        "Best For": "Parents house/let-out",
+        "Effort": "Low",
+        "Annual Extra": "₹1-3L (rent)",
+        "Savings": "₹10-18L",
+        "Tenure Reduction": "5-8 years",
+        "Difficulty": "Easy"
+    })
+
+    # Strategy 8: Side Hustle
+    comparison_data.append({
+        "Strategy": "8️⃣ Side Hustle Income",
+        "Best For": "Entrepreneurs, freelancers",
+        "Effort": "High",
+        "Annual Extra": "₹2-5L (side income)",
+        "Savings": "₹12-20L",
+        "Tenure Reduction": "6-10 years",
+        "Difficulty": "Hard"
+    })
+
+    # Strategy 9: Lifestyle Cut
+    comparison_data.append({
+        "Strategy": "9️⃣ Lifestyle Downsize",
+        "Best For": "High spenders, temporary",
+        "Effort": "Medium",
+        "Annual Extra": "₹1-3L (savings)",
+        "Savings": "₹8-15L",
+        "Tenure Reduction": "4-7 years",
+        "Difficulty": "Medium"
+    })
+
+    # Strategy 10: Debt Avalanche
+    comparison_data.append({
+        "Strategy": "🔟 Debt Avalanche",
+        "Best For": "Multiple loans/debts",
+        "Effort": "Medium",
+        "Annual Extra": "Redirect cleared EMIs",
+        "Savings": "₹10-20L",
+        "Tenure Reduction": "5-10 years",
+        "Difficulty": "Medium"
+    })
+
+    # Strategy 11: Windfall
+    comparison_data.append({
+        "Strategy": "1️⃣1️⃣ Windfall Deployment",
+        "Best For": "Sale/inheritance/ESOP",
+        "Effort": "Low",
+        "Annual Extra": "₹10-50L (one-time)",
+        "Savings": "₹20-40L",
+        "Tenure Reduction": "10-15 years",
+        "Difficulty": "Easy"
+    })
+
+    # Strategy 12: Hybrid
+    comparison_data.append({
+        "Strategy": "1️⃣2️⃣ Hybrid (Best of All)",
+        "Best For": "Optimal result seekers",
+        "Effort": "High",
+        "Annual Extra": "Multiple sources",
+        "Savings": "₹25-50L",
+        "Tenure Reduction": "12-18 years",
+        "Difficulty": "Hard"
+    })
+
+    # Display comparison table
+    comparison_df = pd.DataFrame(comparison_data)
+    st.dataframe(comparison_df, use_container_width=True, hide_index=True, height=500)
+
+    # Quick guide
+    st.markdown("---")
+    st.markdown("### 🎯 Quick Selection Guide")
+
+    col_guide1, col_guide2, col_guide3 = st.columns(3)
+
+    with col_guide1:
+        st.markdown("""
+        **🟢 Beginners Start Here:**
+        - Strategy #1: Bi-Weekly
+        - Strategy #5: EMI Round-Up
+        - Strategy #2: Tax Refund
+        """)
+
+    with col_guide2:
+        st.markdown("""
+        **🟡 Intermediate Level:**
+        - Strategy #3: Annual Bonus
+        - Strategy #4: Step-Up
+        - Strategy #7: Rent Income
+        """)
+
+    with col_guide3:
+        st.markdown("""
+        **🔴 Advanced (Max Savings):**
+        - Strategy #6: Overdraft
+        - Strategy #12: Hybrid
+        - Strategy #8: Side Hustle
+        """)
+
+    st.markdown("""
+    <div class="heart-box">
+    💡 <strong>Pro Tip:</strong> Start with an easy strategy (like #1 or #5) and gradually add more as you get comfortable.
+    Most users combine 2-3 strategies for optimal results!
+    </div>
+    """, unsafe_allow_html=True)
 
 # BANK COMPARISON PAGE
 elif selected_page == 'bank_comparison':
