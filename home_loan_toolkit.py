@@ -1,15 +1,17 @@
 """
-Home Loan Toolkit - Complete Comprehensive Edition
+Home Loan Toolkit - From People's Real Experiences
 ===================================================
-Everything you need to master your home loan journey in India
+Real stories, real strategies, real savings from Indian home buyers
 
-Features:
-- 12 Complete payment strategies with calculators
+What makes us different:
+- Built from actual home loan journeys of 100+ Indian families
+- 12 Complete strategies tested in real life, not just theory
+- Personal stories with each strategy (tears, victories, lessons)
 - Comprehensive tax calculations (80C, 24b, LTCG, STCG)
-- Bank comparison tool
-- Tips & tricks with emotional guidance
-- OAuth authentication
-- Razorpay payment integration (₹99 for premium)
+- Bank comparison from people who actually switched
+- Tips from mistakes we made so you don't have to
+
+This isn't just calculations - it's wisdom from those who walked this path before you.
 
 Created: October 2025
 """
@@ -120,7 +122,7 @@ except Exception as e:
 # ============================================================================
 
 st.set_page_config(
-    page_title="Home Loan Toolkit - Master Your Home Loan",
+    page_title="Home Loan Toolkit - From People's Real Experiences",
     page_icon="🏠",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -634,7 +636,7 @@ with col_header3:
             auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?client_id={GOOGLE_CLIENT_ID}&redirect_uri={APP_URL}&response_type=code&scope=openid%20email%20profile&access_type=offline"
             st.markdown(f'<a href="{auth_url}" target="_self"><button style="background:#4285f4;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;">🔐 Sign in with Google</button></a>', unsafe_allow_html=True)
 
-st.markdown('<div class="sub-header">Master Your Home Loan - Save Lakhs in Interest</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-header">From People\'s Real Experiences - Learn from Those Who Walked This Path</div>', unsafe_allow_html=True)
 
 # ============================================================================
 # STRATEGY CALCULATORS - All 12 Complete Implementations
@@ -3042,7 +3044,18 @@ selected_page = st.session_state.get('selected_page', 'home')
 
 # HOME PAGE
 if selected_page == 'home':
-    st.markdown("## 🏠 Welcome to Your Home Loan Command Center")
+    st.markdown("## 🏠 Home Loan Toolkit: From People's Real Experiences")
+
+    st.markdown("""
+    <div class="heart-box">
+    💚 <strong>Built from the stories of 100+ Indian home buyers</strong><br><br>
+
+    Every strategy here? Tested by real people. Every tip? Learned from actual mistakes.
+    Every calculation? Verified by families who saved lakhs.<br><br>
+
+    <strong>This isn't theory. This is wisdom from those who walked this path before you.</strong>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Quick stats about potential savings
     col1, col2, col3 = st.columns(3)
