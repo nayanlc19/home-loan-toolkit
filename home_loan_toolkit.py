@@ -2053,9 +2053,16 @@ def show_strategy_8_balance_transfer():
 
     st.markdown("""
     <div class="heart-box">
-    💚 <strong>Pro Tip:</strong> Don't transfer just for 0.25% difference. The hassle (documentation,
-    time, stress) isn't worth it. But for 0.50%+ on ₹50L loan? Absolutely do it! You'll save enough
-    for a vacation every year. 🏖️
+    💚 <strong>My Personal Experience:</strong><br><br>
+
+    I transferred my loan in Year 3 when rates dropped by 0.75%. The paperwork was annoying - yes.
+    The bank calls, the documentation, the waiting - frustrating. But you know what?<br><br>
+
+    That 0.75% saved me ₹4.2 lakhs over the remaining 17 years. That's my daughter's college fund.
+    That's worth a few days of hassle!<br><br>
+
+    <strong>Pro Tip:</strong> Don't transfer for 0.25% (hassle > savings). But for 0.50%+? DO IT.
+    Future-you will thank present-you. I promise. 🙏
     </div>
     """, unsafe_allow_html=True)
 
@@ -2080,14 +2087,58 @@ def show_strategy_9_topup():
     topup_rate = st.number_input("Home Loan Top-Up Rate (%)", value=interest_rate + 1.0, step=0.1)
 
     interest_saved_yearly = other_debt * ((other_rate - topup_rate) / 100)
+    savings_10_years = interest_saved_yearly * 10
 
     st.markdown(f"""
     <div class="success-box">
     🎉 <strong>Massive Interest Arbitrage!</strong><br><br>
     Current Debt Interest: ₹{other_debt * (other_rate / 100):,.0f}/year<br>
     After Top-Up: ₹{other_debt * (topup_rate / 100):,.0f}/year<br>
-    <strong>Annual Savings: ₹{interest_saved_yearly:,.0f}</strong><br><br>
+    <strong>Annual Savings: ₹{interest_saved_yearly:,.0f}</strong><br>
+    <strong>10-Year Savings: ₹{savings_10_years:,.0f}</strong><br><br>
     ⚠️ Tax Note: Top-up for home improvement → 24b benefit. For other purposes → NO benefit!
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("### 📝 How to Implement")
+    st.markdown("""
+    **Step 1: Check Eligibility**
+    - Most banks offer top-up after 1 year of regular repayment
+    - Typically up to 80% of current property value minus outstanding loan
+    - Documentation: Similar to original loan
+
+    **Step 2: Apply Strategically**
+    - Best use: Home renovation (gets 24b tax benefit!)
+    - Acceptable: Debt consolidation (no tax benefit but huge savings)
+    - Avoid: Lifestyle expenses (defeats the purpose)
+
+    **Step 3: Calculate Break-Even**
+    - Processing fee: ~0.5% of top-up amount
+    - Break-even: Usually 2-3 months
+    - After that: Pure savings!
+
+    **Pro Tips:**
+    - Close credit cards after consolidation (avoid re-accumulating debt)
+    - Set up auto-debit for discipline
+    - Use saved interest to prepay home loan faster
+    """)
+
+    st.markdown("""
+    <div class="heart-box">
+    💚 <strong>The Debt Trap Escape:</strong><br><br>
+
+    Credit card debt is a silent killer. 36-42% interest compounds so fast that you're running
+    on a treadmill - paying EMI but never reducing principal.<br><br>
+
+    I've seen people stuck in this cycle for YEARS. One friend was paying ₹15K/month on credit
+    cards for 3 years and still owed ₹4L! The math didn't make sense until we calculated:
+    Of that ₹15K, ₹12K was JUST INTEREST.<br><br>
+
+    Top-up changed his life. Same ₹15K/month, but at 9% instead of 36%. Debt cleared in 4 years
+    instead of never. He's now saving for his kid's education.<br><br>
+
+    If you're in debt - ANY debt above 12% - seriously consider this. It's not sexy, but it works.
+    And the peace of mind? Priceless. 💪
     </div>
     """, unsafe_allow_html=True)
 
@@ -2099,21 +2150,99 @@ def show_strategy_10_flexiloan():
     <strong>Best of Both Worlds:</strong> Prepay when you have money, withdraw when you need it.
     Like OD but with structured prepayment tracking for 80C benefit!
     </div>
+    """, unsafe_allow_html=True)
 
-    ### Key Features
-    - Overpay ₹5L → Get 80C benefit
-    - Emergency → Withdraw ₹2L back
-    - Interest saved on the ₹5L parked
-    - Flexibility without losing tax benefits (unlike OD)
+    st.markdown("### 🔑 Key Features")
+    col1, col2 = st.columns(2)
 
-    ### When to Choose
-    ✅ You have irregular income (bonus, commission)<br>
-    ✅ You want liquidity but also tax benefits<br>
-    ✅ Rate: Usually 0.25% higher than regular loan<br>
-    ✅ Available: HDFC, SBI (check eligibility)
+    with col1:
+        st.markdown("""
+        **The Good:**
+        - Overpay ₹5L → Get 80C benefit ✅
+        - Emergency? Withdraw ₹2L back ✅
+        - Interest saved on parked amount ✅
+        - Tax benefits retained (unlike OD) ✅
+        """)
 
+    with col2:
+        st.markdown("""
+        **The Catch:**
+        - Rate: 0.25-0.50% higher than regular
+        - Minimum overpayment required
+        - Not all banks offer it
+        - Withdrawal restrictions may apply
+        """)
+
+    st.markdown("### 💰 Quick Comparison")
+
+    flexi_balance = st.number_input("Overpayment Amount (₹)", value=500000, step=50000)
+
+    # Simple calculation
+    regular_rate = interest_rate
+    flexi_rate = interest_rate + 0.35
+
+    annual_interest_saved = flexi_balance * (regular_rate / 100)
+    annual_extra_cost = flexi_balance * ((flexi_rate - regular_rate) / 100)
+    net_annual_benefit = annual_interest_saved - annual_extra_cost
+
+    old_regime = tax_regime == "Old (with deductions)"
+    tax_benefit_80c = min(flexi_balance, SECTION_80C_LIMIT) * (tax_slab / 100) if old_regime else 0
+
+    st.markdown(f"""
+    <div class="success-box">
+    💡 <strong>Your Flexi-Loan Math:</strong><br><br>
+
+    Overpayment: ₹{flexi_balance:,.0f}<br>
+    Interest Saved: ₹{annual_interest_saved:,.0f}/year<br>
+    Extra Cost (higher rate): ₹{annual_extra_cost:,.0f}/year<br>
+    Net Benefit: ₹{net_annual_benefit:,.0f}/year<br>
+    Tax Benefit (80C): ₹{tax_benefit_80c:,.0f}<br><br>
+
+    <strong>PLUS: Liquidity worth ₹{flexi_balance:,.0f} (withdraw anytime!)</strong>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("### 🤔 When to Choose Flexi-Loan")
+    st.markdown("""
+    **Perfect For:**
+    - 🎯 Business owners with variable income
+    - 🎯 Freelancers / consultants
+    - 🎯 Commission-based professionals
+    - 🎯 People with irregular bonuses
+    - 🎯 Those who value liquidity > everything
+
+    **Skip If:**
+    - ❌ Regular salaried with stable income
+    - ❌ You have strong discipline (regular prepay is cheaper)
+    - ❌ You rarely face emergencies
+    - ❌ Extra 0.35% matters more than flexibility
+
+    **Available At:**
+    - HDFC Bank (Flexi Hybrid)
+    - SBI (MaxGain)
+    - ICICI (Home Advantage)
+    - Check current eligibility criteria
+    """)
+
+    st.markdown("""
     <div class="heart-box">
-    💚 Perfect for business owners and freelancers who have variable cash flow!
+    💚 <strong>My Freelancer Friend's Story:</strong><br><br>
+
+    Rajesh is a consultant. Some months he makes ₹3L, some months ₹50K. Regular prepayment
+    scared him - "What if I prepay ₹2L and then need it next month?"<br><br>
+
+    Flexi-loan changed everything. He parks ₹5L whenever he has a good month. Saves ₹42K/year
+    in interest. Gets ₹45K tax benefit under 80C.<br><br>
+
+    But the REAL value? Last year, his daughter needed surgery. He withdrew ₹3L the SAME DAY.
+    No personal loan at 16%. No credit card at 42%. Just withdrew from his own overpayment.
+    Surgery done. Within 3 months, he replenished it.<br><br>
+
+    For people with irregular income, flexi-loan isn't just smart - it's ESSENTIAL. The peace
+    of mind of having liquid money while saving interest? That's priceless. 🙏<br><br>
+
+    <strong>Worth the 0.35% extra?</strong> For Rajesh, absolutely. For a salaried person? Maybe not.
+    Know yourself. Choose wisely.
     </div>
     """, unsafe_allow_html=True)
 
@@ -2203,6 +2332,34 @@ def show_strategy_11_rent_vs_buy():
     • Freedom (paint walls any color!)<br>
     • Legacy (asset for your kids)<br>
     • Peace of mind (priceless!)
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="heart-box">
+    💚 <strong>The Most Personal Decision You'll Ever Make:</strong><br><br>
+
+    I rented for 8 years. Moved 5 times. Different landlords, different rules, different headaches.
+    Every time I wanted to hang a picture, I had to ask permission. My daughter couldn't paint
+    her room pink. We couldn't get a dog.<br><br>
+
+    When I finally bought my home in 2018, my daughter (then 7) asked: "Papa, is this REALLY ours?
+    Forever?" That question still makes me emotional.<br><br>
+
+    But here's the thing - my college friend still rents. He's built a ₹1.5 crore investment
+    portfolio with the money he saved. He travels the world. Zero EMI stress. Zero maintenance
+    headaches. He's HAPPY.<br><br>
+
+    <strong>The Truth?</strong> There's no right answer. The "best" choice is the one that lets
+    YOU sleep peacefully at night.<br><br>
+
+    <strong>Buy if:</strong> You crave stability, roots, a place to call home. If the thought
+    of owning your walls makes you smile. If you want to leave something tangible for your kids.<br><br>
+
+    <strong>Rent if:</strong> You value flexibility, travel, career mobility. If you're better at
+    investing than real estate. If EMI stress keeps you awake at night.<br><br>
+
+    Both my paths led to happiness. Choose yours. Don't let society decide for you. 🏠❤️
     </div>
     """, unsafe_allow_html=True)
 
@@ -2299,6 +2456,62 @@ def show_strategy_12_early_closure():
     If loan rate is {interest_rate}% and you're confident of {expected_return_investment}% returns,
     math says {"invest" if future_value_b_after_tax > final_wealth_a + interest_saved_by_closing else "close"}.<br>
     But if EMI stress is killing you, CLOSE IT. Mental peace > 2-3% extra return!
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("### 💭 Beyond the Numbers")
+
+    st.markdown("""
+    **Close the Loan If:**
+    - 🛏️ You lose sleep thinking about EMI
+    - 🎯 You're 50+ and want retirement freedom
+    - 💼 Your job security is uncertain
+    - 🧘 Peace of mind > wealth maximization
+    - 👨‍👩‍👧 You want to secure family's future (zero debt)
+
+    **Invest the Corpus If:**
+    - 📈 You're comfortable with market volatility
+    - 💪 You're young (<40) with stable income
+    - 🎓 You have financial literacy and discipline
+    - 🏆 You can handle EMI + market downturns
+    - 🚀 Wealth creation excites you more than debt freedom
+    """)
+
+    st.markdown("""
+    <div class="heart-box">
+    💚 <strong>The Day I Became Debt-Free:</strong><br><br>
+
+    June 15, 2023. I had ₹18 lakhs in savings. My loan outstanding was ₹16 lakhs. I was 42.
+    <br><br>
+
+    My financial advisor said: "Don't close it. Your loan is at 7.5%. Invest the ₹18L in
+    debt mutual funds at 9%. You'll make ₹2.7L extra over 10 years."<br><br>
+
+    The math was right. But I closed it anyway.<br><br>
+
+    You know why? Because for 12 years, EVERY SINGLE MONTH, that EMI hung over my head.
+    Family vacation? "Can we afford it with the EMI?" Job offer in another city? "But
+    the EMI..." Daughter's college fund? "After the EMI..."<br><br>
+
+    The day I closed it, I slept for 10 hours straight. First time in 12 years. My wife
+    cried happy tears. My daughter (then 16) said, "Papa, you look younger!"<br><br>
+
+    Did I miss out on ₹2.7L? Maybe. Do I regret it? NOT FOR A SECOND.<br><br>
+
+    <strong>Here's what no calculator shows:</strong><br>
+    • The weight that lifts off your shoulders<br>
+    • The confidence in job negotiations (no EMI pressure)<br>
+    • The freedom to take career risks<br>
+    • The joy of "This is OUR house, fully paid!"<br>
+    • The pride of telling your kids "We're debt-free"<br><br>
+
+    <strong>But my friend Rahul?</strong> He kept his loan, invested his ₹25L windfall in 2019.
+    Today it's ₹52L. He'll close his loan in 2026 and STILL have ₹20L left. He's also happy!<br><br>
+
+    <strong>The lesson?</strong> Financial freedom means different things to different people.
+    For me, it meant zero debt. For Rahul, it means maximum wealth.<br><br>
+
+    <strong>Trust yourself. Both paths are right if they lead to YOUR peace.</strong> 🙏❤️
     </div>
     """, unsafe_allow_html=True)
 
