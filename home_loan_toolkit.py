@@ -883,8 +883,8 @@ page_options = {}
 page_options.update(free_pages)
 page_options.update(premium_pages)
 
-# Add checkout only if user needs to pay (currently disabled since paywall is off)
-if not is_paid and not is_admin_user and False:  # Disabled since paywall is off
+# Add checkout only if user needs to pay
+if not is_paid and not is_admin_user:
     page_options.update(checkout_page)
 
 # Render navigation buttons
@@ -3722,13 +3722,61 @@ elif selected_page == 'strategies':
     with st.expander("Strategy #1: Bi-Weekly Payment Hack (Click to Expand)", expanded=True):
         show_strategy_1_biweekly()
 
-    # Show all premium strategies (PAYWALL TEMPORARILY DISABLED FOR TESTING)
-    st.markdown("### ✅ All 12 Strategies (Full Access for Testing)")
+    # Premium strategies - Check if user has paid
+    if is_paid or is_admin_user:
+        st.markdown("### ✅ All 12 Strategies (Premium Access)")
 
-    # Strategy 2: Tax Refund Amplification
-    st.markdown("---")
-    with st.expander("Strategy #2: Tax Refund Amplification", expanded=False):
-        show_strategy_2_tax_refund()
+        # Strategy 2: Tax Refund Amplification
+        st.markdown("---")
+        with st.expander("Strategy #2: Tax Refund Amplification", expanded=False):
+            show_strategy_2_tax_refund()
+    else:
+        # Show paywall
+        st.markdown("---")
+        st.markdown("### 🔒 Premium Strategies (11 More)")
+
+        st.markdown("""
+        <div class="premium-box">
+        <strong>🎁 Unlock All 11 Premium Strategies for just ₹99</strong><br><br>
+
+        Get lifetime access to:<br>
+        • Strategy #2: Tax Refund Amplification - Save ₹5-8L<br>
+        • Strategy #3: Lump Sum Accelerator - Save ₹8-12L<br>
+        • Strategy #4: SIP vs Prepayment - Save ₹10-15L<br>
+        • Strategy #5: Overdraft Loan - Save ₹15-25L<br>
+        • Strategy #6: Step-Up EMI - Save ₹10-15L<br>
+        • Strategy #7: Part-Prepayment - Save ₹8-12L<br>
+        • Strategy #8: Balance Transfer - Save ₹5-10L<br>
+        • Strategy #9: Top-Up Consolidation - Save ₹6-12L<br>
+        • Strategy #10: Flexi-Loan - Save ₹8-15L<br>
+        • Strategy #11: Rent vs Buy - Make the right decision<br>
+        • Strategy #12: Early Closure vs Investment - Optimize returns<br><br>
+
+        <strong>Plus:</strong><br>
+        ✅ Advanced tax calculations (LTCG, STCG, HRA)<br>
+        ✅ Personalized rate calculator<br>
+        ✅ EMI vs Overdraft comparison<br>
+        ✅ Hidden issues guide<br>
+        ✅ Comprehensive tips & tricks<br>
+        ✅ Lifetime access - No subscription<br>
+        ✅ Future updates FREE<br><br>
+
+        <strong>One-time payment. Lifetime value. Save lakhs on your loan!</strong>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if user_email:
+            if st.button("🔓 Unlock All Strategies for ₹99", key="unlock_strategies", use_container_width=True, type="primary"):
+                st.session_state.selected_page = 'checkout'
+                st.rerun()
+        else:
+            st.warning("⚠️ Please sign in with Google to unlock premium strategies")
+            st.info("Click the 'Sign in with Google' button in the sidebar or at the top to continue")
+
+        st.markdown("---")
+        return  # Exit early, don't show premium strategies
+
+    # Continue showing strategies 2-12 for paid users
 
     # Strategy 3: Lump Sum Accelerator
     st.markdown("---")
